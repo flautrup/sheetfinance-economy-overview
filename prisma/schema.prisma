@@ -1,0 +1,50 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Transaction {
+  id              String   @id @default(uuid())
+  date            DateTime // Datum
+  area            String?  // Omrade
+  category        String?  // Kategori
+  type            String?  // Typ
+  description     String?  // Beskrivning
+  account         String?  // Konto
+  transferFrom    String?  // Överföring från konto
+  transferTo      String?  // Överföring till konto
+  amount          Float    // Summa
+  note            String?  // Anteckning
+  createdAt       DateTime @default(now())
+}
+
+model Balance {
+  id              String   @id @default(uuid())
+  date            DateTime // BalDatum
+  description     String?  // BalBeskrivning
+  category        String?  // BalKategori
+  type            String?  // BalTyp
+  value           Float    // BalVärde
+  createdAt       DateTime @default(now())
+}
+
+model BucketMapping {
+  id                 String   @id @default(uuid())
+  balanceDescription String   @unique // The exact 'BalBeskrivning' string from Balansräkning
+  bucket             String   // "BUFFER", "PRESERVE", "GROWTH", "PLAY"
+}
+
+model BucketScenario {
+  id              String   @id @default(uuid())
+  bucket          String   @unique // "BUFFER", "PRESERVE", "GROWTH", "PLAY"
+  targetAmount    Float?   // The target monetary value for this bucket
+  expectedGrowth  Float?   // e.g., 0.07 for 7% annual growth
+  horizonYears    Int?     // Default horizon length in years
+}

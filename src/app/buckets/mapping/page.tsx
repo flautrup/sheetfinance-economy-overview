@@ -3,11 +3,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "@/lib/i18n";
 
-type Mapping = {
-  balanceCategory: string;
-  bucket: string;
-};
-
 export default function MappingPage() {
   const { t } = useTranslation();
   const [categories, setCategories] = useState<string[]>([]);
@@ -20,7 +15,7 @@ export default function MappingPage() {
       .then((data) => {
         setCategories(data.categories || []);
         const maps: Record<string, string> = {};
-        data.mappings?.forEach((m: any) => {
+        data.mappings?.forEach((m: { balanceDescription: string; bucket: string }) => {
           maps[m.balanceDescription] = m.bucket;
         });
         setMappings(maps);

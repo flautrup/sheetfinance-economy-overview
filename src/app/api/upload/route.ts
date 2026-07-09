@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { google } from "googleapis";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 // Utility to parse Swedish formatted numbers (e.g. "−10,00" or "-10,00" to -10.00)
 function parseSwedishNumber(val: string): number {
   if (!val) return 0;
-  // Replace minus sign variations and replace comma with dot
   const clean = val.replace("−", "-").replace(",", ".").replace(/\s+/g, "");
   return parseFloat(clean) || 0;
 }
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { txSheetUrl, balSheetUrl, accessToken } = await req.json();
 
     if ((!txSheetUrl && !balSheetUrl) || !accessToken) {
@@ -37,7 +43,9 @@ export async function POST(req: Request) {
       }
       
       const meta = await sheets.spreadsheets.get({ spreadsheetId: txId });
-      const sheetTitles = meta.data.sheets?.map((s: any) => s.properties?.title) || [];
+      const sheetTitles = (meta.data.sheets || [])
+        .map((s) => s.properties?.title)
+        .filter((t): t is string => typeof t === "string");
       const txTab = sheetTitles.find((t: string) => t?.toLowerCase().includes("transaktion")) || sheetTitles[0];
 
       const resp = await sheets.spreadsheets.values.get({
@@ -85,7 +93,9 @@ export async function POST(req: Request) {
       }
 
       const meta = await sheets.spreadsheets.get({ spreadsheetId: balId });
-      const sheetTitles = meta.data.sheets?.map((s: any) => s.properties?.title) || [];
+      const sheetTitles = (meta.data.sheets || [])
+        .map((s) => s.properties?.title)
+        .filter((t): t is string => typeof t === "string");
       const balTab = sheetTitles.find((t: string) => t?.toLowerCase().includes("balans")) || sheetTitles[0];
 
       const resp = await sheets.spreadsheets.values.get({
@@ -117,8 +127,9 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, txCount, balCount });
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Upload parse error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    return NextResponse.json({ success: false, error: message }, { status: 400 });
   }
 }

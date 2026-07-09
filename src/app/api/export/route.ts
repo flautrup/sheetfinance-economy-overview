@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { sheetUrl, accessToken } = await req.json();
 
     if (!sheetUrl || !accessToken) {
@@ -26,7 +33,6 @@ export async function POST(req: Request) {
     }
 
     // Prepare data for Google Sheets
-    // Columns: Date, Description, Amount, Area, Category
     const values = [
       ["Datum", "Beskrivning", "Belopp", "Område", "Kategori"],
       ...transactions.map(t => [
@@ -38,8 +44,6 @@ export async function POST(req: Request) {
       ])
     ];
 
-    // 1. Clear the existing sheet (optional, but good for a fresh backup)
-    // We will assume writing to Sheet1
     const clearUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sheet1:clear`;
     const clearRes = await fetch(clearUrl, {
       method: "POST",
@@ -52,10 +56,8 @@ export async function POST(req: Request) {
     if (!clearRes.ok) {
       const err = await clearRes.json();
       console.error("Failed to clear sheet:", err);
-      // We don't fail hard here, we just append or try to write anyway
     }
 
-    // 2. Write the new data
     const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sheet1!A1?valueInputOption=USER_ENTERED`;
     const updateRes = await fetch(updateUrl, {
       method: "PUT",
@@ -77,8 +79,9 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, rowsExported: transactions.length });
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Export error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -16,6 +16,7 @@ type DashboardData = {
     ownCapital: number;
     solvency: number;
     liquidityMonths: number;
+    estimatedLiquidity?: boolean;
   }[];
 };
 
@@ -124,7 +125,7 @@ export default function Home() {
                 <XAxis dataKey="month" stroke="#e0e3e5" fontSize={10} tickLine={false} axisLine={false} />
                 <YAxis stroke="#e0e3e5" fontSize={10} tickLine={false} axisLine={false} width={80} tickFormatter={(val) => `${val / 1000}k`} />
                 <Tooltip 
-                  formatter={(value: any) => formatCurrency(value as number)}
+                  formatter={(value) => formatCurrency(Number(value))}
                   labelStyle={{ color: '#191c1e', fontWeight: 'bold' }}
                 />
                 <Line type="monotone" dataKey="liquidCapital" stroke="#006c4a" strokeWidth={4} dot={{ r: 4, strokeWidth: 2 }} />

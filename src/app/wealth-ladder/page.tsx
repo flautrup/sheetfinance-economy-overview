@@ -14,7 +14,7 @@ type WealthLadderData = {
 };
 
 export default function WealthLadderPage() {
-  const { t } = useTranslation();
+  useTranslation();
   const [data, setData] = useState<WealthLadderData | null>(null);
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function WealthLadderPage() {
   if (!data) return <div className="p-10">Laddar rikedomstrappan...</div>;
   if (data.error) return <div className="p-10 text-red-500">Fel: {data.error}. Kontrollera din databas och starta om dev-servern.</div>;
 
-  const { netWorth, liquidCapital, monthlyPassiveIncome, avgMonthlyExpenses } = data;
+  const { netWorth, monthlyPassiveIncome, avgMonthlyExpenses } = data;
 
   const steps = [
     {

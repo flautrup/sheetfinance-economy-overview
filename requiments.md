@@ -48,4 +48,37 @@ BalDatum	BalBeskrivning	BalKategori	BalTyp	BalVärde
 2017-12-27	Skatt	Långfristiga skulder	Skuld	185000
 2017-12-27	Studielån	Långfristiga skulder	Skuld	92196
 
+---
+
+## 🛠️ Implemented Architecture & Code Realization (Version 2 Update)
+
+The list below outlines how each of the original goals and requirements have been realized in the active codebase:
+
+### 1. Financial Overview Models
+* **Four Bucket Model**: Accessible on the `/buckets` page. Allows configuring expected growth, target allocations, and investment horizons for the Buffer, Preserve, Growth, and Play buckets.
+* **Wealth Ladder (Rikedomstrappan)**: Dynamically calculated on the `/wealth-ladder` page. Maps assets and runway to levels 1 through 6.
+* **General Overview & Metrics**: Calculated inside the consolidated service [finance.ts](file:///home/fredrik/Documents/GitHub/economy-overview/src/lib/finance.ts) and displayed on the home page dashboard `/`:
+  * **Liquidity**: Liquid Capital (Buffer + Preserve balances) and trailing 6-month runway in months.
+  * **Solvency**: Solidity percentage (`ownCapital / totalAssets`).
+  * **Capital & Net Worth**: Own Capital (Total Assets - Debt).
+  * **Debt**: Negative balance liabilities.
+  * **Savings Rate**: Rolling 12-month savings rate formula (`(income - expense) / income`).
+* **Monthly Spending**: Placed on the `/spending` page with month/year filters, visual category breakdowns, and click triggers to open detail transaction ledgers.
+* **Bilingual Translation Support**: Managed via the `useTranslation` locale context wrapper, supporting Swedish (`sv`) and English (`en`).
+
+### 2. Authentication & Data Security
+* **Google OAuth**: Handled using `NextAuth.js` with the Google provider configuration.
+* **Security Validation**: Enforced active sessions on all state mutations and query API routes under `/api/*`.
+* **Redirects**: Handled globally using Next.js Middleware in [middleware.ts](file:///home/fredrik/Documents/GitHub/economy-overview/src/middleware.ts).
+
+### 3. Ingestion & Data Portability
+* **Google Sheets Sync**: The `/api/upload` endpoint pulls user-configured transactions and balance sheets directly from Google Sheets using Google OAuth API scopes.
+* **CSV Parsing & AI Pre-classifier**: Drag-and-drop file ingestion in `/upload` resolves known recurring expenses instantly via local regex rules in [preClassifier.ts](file:///home/fredrik/Documents/GitHub/economy-overview/src/lib/preClassifier.ts), while batching remaining lines to Gemini 2.5 Flash.
+* **Google Sheets Export**: Backs up transaction records back to a Google Sheet using the Sheets API client.
+
+### 4. Data Storage & Local Runtime
+* **Independent SQL Database**: Configured using Prisma ORM with a local SQLite database file (`prisma/dev.db`), allowing querying via any standard third-party SQL GUI client.
+* **Docker Compose**: Containerized execution setup using a multi-stage [Dockerfile](file:///home/fredrik/Documents/GitHub/economy-overview/Dockerfile) and [docker-compose.yml](file:///home/fredrik/Documents/GitHub/economy-overview/docker-compose.yml).
+
+
 

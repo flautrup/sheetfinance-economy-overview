@@ -15,9 +15,18 @@ export default function UploadPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
 
+interface CategorizedTransaction {
+  date: string;
+  description: string;
+  amount: number;
+  area: string;
+  type: string;
+  category: string;
+}
+
   // States for AI Categorization
   const [isCategorizing, setIsCategorizing] = useState(false);
-  const [parsedTransactions, setParsedTransactions] = useState<any[]>([]);
+  const [parsedTransactions, setParsedTransactions] = useState<CategorizedTransaction[]>([]);
   const [isSavingAi, setIsSavingAi] = useState(false);
   const [accountOwner, setAccountOwner] = useState("");
   
@@ -39,7 +48,7 @@ export default function UploadPage() {
       const res = await fetch("/api/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ txSheetUrl, balSheetUrl, accessToken: (session as any).accessToken }),
+        body: JSON.stringify({ txSheetUrl, balSheetUrl, accessToken: (session as { accessToken?: string }).accessToken }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch from Google Sheets");
@@ -47,8 +56,9 @@ export default function UploadPage() {
       setMessage(`${t("dataSaved")} (Transaktioner: ${data.txCount}, Balans: ${data.balCount})`);
       setTxSheetUrl("");
       setBalSheetUrl("");
-    } catch (error: any) {
-      setMessage(`Error: ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setMessage(`Error: ${message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -68,20 +78,19 @@ export default function UploadPage() {
       complete: async (results) => {
         // Attempt to guess columns (Date, Description, Amount)
         // This is a naive mapper, it looks for common Swedish bank column names
-        const rawTxs = results.data.map((row: any) => {
+        const rawTxs = (results.data as Record<string, string | undefined>[]).map((row) => {
           const date = row["Datum"] || row["Date"] || row["Bokföringsdag"] || Object.values(row)[0];
           const desc = row["Beskrivning"] || row["Text"] || row["Description"] || row["Rubrik"] || Object.values(row)[1];
           const amtStr = row["Belopp"] || row["Amount"] || Object.values(row)[2];
           
           let amount = 0;
           if (amtStr && typeof amtStr === "string") {
-            // Fix swedish formatting e.g. -1 200,50
             amount = parseFloat(amtStr.replace(/\s/g, "").replace(",", "."));
           } else if (typeof amtStr === "number") {
             amount = amtStr;
           }
 
-          return { date, description: desc, amount };
+          return { date: date || "", description: desc || "", amount };
         }).filter(t => t.date && t.description && !isNaN(t.amount));
 
         try {
@@ -95,8 +104,9 @@ export default function UploadPage() {
           if (!res.ok) throw new Error(data.error);
           
           setParsedTransactions(data.transactions);
-        } catch (error: any) {
-          setMessage(`AI Categorization Failed: ${error.message}`);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Unknown error";
+          setMessage(`AI Categorization Failed: ${message}`);
         } finally {
           setIsCategorizing(false);
           if (fileInputRef.current) fileInputRef.current.value = "";
@@ -105,7 +115,7 @@ export default function UploadPage() {
     });
   };
 
-  const TAXONOMY = {
+  const TAXONOMY: Record<string, Record<string, string[]>> = {
     "Utgift": {
       "Kommunikation": ["Tv", "Fast telefoni", "Mobil telefoni", "Internet", "Mobilt internet", "Annat"],
       "Mat & dryck": ["Livsmedel", "Luncher", "Fika", "Frukost", "Middag", "Alkohol", "Godis/Snacks", "Snabbmat", "Restaurang", "Annat"],
@@ -129,7 +139,7 @@ export default function UploadPage() {
     updated[index].area = newArea;
     updated[index].type = newType;
     // Auto-select the first available category in this type
-    const availableCategories = (TAXONOMY as any)[newArea][newType] || [];
+    const availableCategories = TAXONOMY[newArea]?.[newType] || [];
     updated[index].category = availableCategories[0] || "";
     setParsedTransactions(updated);
   };
@@ -158,8 +168,9 @@ export default function UploadPage() {
       setMessage(`Sparade ${parsedTransactions.length} transaktioner i databasen.`);
       setParsedTransactions([]);
       setAccountOwner("");
-    } catch (err: any) {
-      setMessage(`Fel: ${err.message}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setMessage(`Fel: ${message}`);
     } finally {
       setIsSavingAi(false);
     }
@@ -175,15 +186,16 @@ export default function UploadPage() {
       const res = await fetch("/api/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sheetUrl: exportSheetUrl, accessToken: (session as any).accessToken }),
+        body: JSON.stringify({ sheetUrl: exportSheetUrl, accessToken: (session as { accessToken?: string }).accessToken }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Misslyckades med exportering");
       
       setMessage(`Export lyckades! ${data.rowsExported} rader sparades till ditt ark.`);
       setExportSheetUrl("");
-    } catch (error: any) {
-      setMessage(`Export Error: ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setMessage(`Export Error: ${message}`);
     } finally {
       setIsExporting(false);
     }
@@ -381,7 +393,7 @@ export default function UploadPage() {
                         onChange={(e) => handleCategoryChange(idx, e.target.value)}
                         className="p-2 border border-slate-200 rounded bg-white text-sm w-full outline-primary cursor-pointer"
                       >
-                        {((TAXONOMY as any)[tx.area]?.[tx.type] || []).map((cat: string) => (
+                        {(TAXONOMY[tx.area]?.[tx.type] || []).map((cat: string) => (
                           <option key={cat} value={cat}>{cat}</option>
                         ))}
                       </select>

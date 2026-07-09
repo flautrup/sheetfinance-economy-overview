@@ -146,11 +146,7 @@ erDiagram
 * Configurable on the mapping frontend page `/buckets/mapping`.
 
 ### 4. `BucketScenario`
-* Stores targeted asset allocation profiles, compound growth rates, and investment timeframes for each bucket.
-
----
-
-## 📁 Codebase Directory Structure
+* Stores targeted asset allocation profiles, compound growth rates, and investment timeframes for each b## 📁 Codebase Directory Structure
 
 ```
 ├── prisma/
@@ -164,11 +160,13 @@ erDiagram
 │   │   │   ├── categorize/          # Gemini API transaction classifier
 │   │   │   ├── dashboard/           # Home dashboard analytics aggregator
 │   │   │   ├── export/              # Google Sheets exporter
+│   │   │   ├── reset/               # [NEW] Database reset and stats endpoint
 │   │   │   ├── spending/            # Cashflow trend & category analyzer
-│   │   │   ├── transactions/        # Deduplication and database writers
+│   │   │   ├── transactions/        # Transaction ledger queries & writers
 │   │   │   ├── upload/              # Sheets ingestion sync endpoint
 │   │   │   └── wealth-ladder/       # Passive income and tier calculator
 │   │   ├── buckets/                 # Buckets View (Targets and Mappings UI)
+│   │   ├── settings/                # [NEW] Settings panel page
 │   │   ├── spending/                # Kassaflöde (Cashflow/Spending UI)
 │   │   ├── upload/                  # Datahantering (Google Sheet Sync & AI UI)
 │   │   ├── wealth-ladder/           # Wealth Ladder progression UI
@@ -177,12 +175,17 @@ erDiagram
 │   │   ├── layout.tsx               # Root layout wrapping sidebar & topbar
 │   │   └── page.tsx                 # Dashboard home component
 │   ├── components/                  # Shared React components
+│   │   ├── LayoutWrapper.tsx        # [NEW] Client-side sidebar drawer manager
 │   │   ├── Providers.tsx            # SessionProvider wrapper
-│   │   ├── Sidebar.tsx              # Sidebar navigation
-│   │   └── Topbar.tsx               # Header toolbar (locale switcher, search)
-│   └── lib/                         # Utility library files
-│       ├── i18n.tsx                 # Localization provider (Swedish & English)
-│       └── prisma.ts                # Hot-reload safe global Prisma Client instance
+│   │   ├── Sidebar.tsx              # Sidebar navigation (with slide drawer classes)
+│   │   └── Topbar.tsx               # Header toolbar (with hamburger menu)
+│   ├── lib/                         # Utility library files
+│   │   ├── auth.ts                  # [NEW] Centralized auth configuration
+│   │   ├── finance.ts               # [NEW] Unified financial business logic
+│   │   ├── i18n.tsx                 # Localization provider (Swedish & English)
+│   │   ├── preClassifier.ts         # [NEW] Local keyword pre-classification rules
+│   │   └── prisma.ts                # Hot-reload safe global Prisma Client instance
+│   ├── middleware.ts                # [NEW] Route protection middleware
 ├── .env.local                       # Environment credentials (ignored by Git)
 ├── package.json                     # Node dependencies & project scripts
 └── tsconfig.json                    # TS configuration
@@ -190,36 +193,41 @@ erDiagram
 
 ---
 
-## 📈 Detailed Improvement Plan
+## ✅ Implemented System Upgrades
 
-While the application features a robust functional architecture, there are several areas where code resilience, security, performance, and user experience can be dramatically improved.
+The following optimizations have been fully implemented, compiling successfully with zero warnings/errors in the production build:
 
-### 1. 🔒 Security & Authentication
-> [!IMPORTANT]
-> **API Route Vulnerability**: Currently, none of the GET/POST API endpoints under `/api/buckets`, `/api/dashboard`, `/api/spending`, or `/api/transactions` perform authentication checks. Any user can scrape your financial data or modify your database transactions simply by querying the endpoints directly.
+### 1. 🔒 Security & Session Protection
+* **Session Wrapper**: Configured [auth.ts](file:///home/fredrik/Documents/GitHub/economy-overview/src/lib/auth.ts) to define and share `authOptions`.
+* **API Validation**: Secured all endpoint query and mutation routes under `/api` by validating active NextAuth sessions.
+* **Global Middleware Redirect**: Introduced [middleware.ts](file:///home/fredrik/Documents/GitHub/economy-overview/src/middleware.ts) to automatically intercept page loads and redirect unauthenticated users to the sign-in screen.
 
-* **Secure API Routes**: Wrap endpoint bodies using `getServerSession(authOptions)` to block unauthorized queries.
-* **Encrypt OAuth Tokens**: Keep the Google OAuth access token strictly on the server-side session instead of passing it down in the raw client session payload (`(session as any).accessToken`).
-* **CSRF Protection**: Ensure state-modifying requests (like uploading transactions or updating configurations) carry CSRF tokens.
+### 2. ⚡ Unified Business Logic Service
+* **Finance Service**: Consolidated rolling spending calculations, average monthly expenses, solvency ratios, and runway computations into [finance.ts](file:///home/fredrik/Documents/GitHub/economy-overview/src/lib/finance.ts).
+* **Database Aggregations**: Upgraded the calculations to use Prisma's native database aggregation (`_sum` and `groupBy`) instead of array reductions in Node memory.
 
-### 2. 🗄️ Database & Schema Optimization
-* **Database Indexes**: Add database indexes on fields used for filtering and ordering (e.g. `date` and `area` on the `Transaction` table, and `date` on the `Balance` table) to boost query performance.
-* **Configurable Taxonomy**: The transaction category taxonomy (`TAXONOMY` in `upload/page.tsx` and the Gemini prompt in `categorize/route.ts`) is hardcoded in the codebase. Moving this taxonomy into database models (e.g., a `TaxonomyNode` table) will let users customize categories directly inside the application.
-* **Robust Deduplication**: The current transaction deduplication in `/api/transactions` checks for exact matches of `date`, `description`, and `amount`. This will skip valid duplicate transactions made on the same day (such as paying for two train tickets or coffees at the same shop). Implementing a transaction hashing mechanism or using unique transaction IDs provided by bank CSVs will eliminate false positives.
+### 3. 📱 Mobile Responsiveness Layout
+* **Drawer Manager**: Created [LayoutWrapper.tsx](file:///home/fredrik/Documents/GitHub/economy-overview/src/components/LayoutWrapper.tsx) client shell to coordinate menu toggle states.
+* **Responsive Navigation**: Added slide drawers, overlays, and hamburger toggles on [Sidebar.tsx](file:///home/fredrik/Documents/GitHub/economy-overview/src/components/Sidebar.tsx) and [Topbar.tsx](file:///home/fredrik/Documents/GitHub/economy-overview/src/components/Topbar.tsx).
 
-### 3. ⚡ Code Refactoring & Query Performance
-* **Calculate Code Consolidation**: Rolling 6-month or 12-month expense aggregations, average monthly spending, and liquidity calculations are calculated independently (and slightly differently) in `/api/dashboard`, `/api/wealth-ladder`, and `/api/spending`. Extract these calculations into a unified business logic helper class (`/src/lib/finance.ts`).
-* **Database Aggregations**: The endpoints currently fetch all matching transactions from the database and perform array reductions in Node JS memory (e.g. in `api/dashboard/route.ts` and `api/spending/route.ts`). Using Prisma's native `groupBy` and `_sum` functions will reduce the data transfer overhead and optimize memory usage.
-* **SQLite Cloud Support**: SQLite is optimal for local execution, but fails under concurrent write loads in cloud environments. Abstracting database interactions allows swapping SQLite for a hosted alternative (like PostgreSQL, MySQL, or Turso) with minimal disruption.
+### 4. 📅 Month/Year Filters & Ledgers Drill-down
+* **Spending Filters**: Added year and month filter parameters to the spending API and integrated interactive selector dropdowns on the kassaflöde view.
+* **Category Ledgers**: Implemented category drill-down details by fetching transactions from the transactions GET endpoint and showing them inside a visual modal sheet.
 
-### 4. 🎨 UI/UX & Feature Alignment
-* **Mobile Responsiveness**: The sidebar navigation goes hidden on small screens (`hidden md:flex`), but there is no mobile drawer or hamburger trigger. The site is currently inaccessible on mobile devices. A mobile responsive menu needs to be added.
-* **Missing Features implementation**:
-  * **Month/Year Filters**: The requirements mention having filters to view specific months or years, which are currently not implemented on the dashboard or spending pages.
-  * **Drill-down Table**: Users should be able to click on a spending category in `/spending` to see the transaction ledger details (the specific purchases that make up that category's total).
-* **Settings Page 404**: The sidebar points to `/settings`, but no settings page or folder has been created in `/src/app`, resulting in a broken page link. A `/settings` page should be created to manage configurations, Google Sheet connections, and profile data.
+### 5. ⚙️ Settings Administration
+* **Controls Dashboard**: Built the settings view page [settings/page.tsx](file:///home/fredrik/Documents/GitHub/economy-overview/src/app/settings/page.tsx) with statistics counts, logout triggers, and a database clear tool.
 
-### 5. 🤖 AI Categorization Enhancements
-* **Prompt Batching**: Sending large CSV files with hundreds of transactions in a single prompt to Gemini may exceed token windows or degrade response structure validation. Splitting transaction payloads into smaller batches (e.g., 50 at a time) will improve reliability.
-* **Local Regex Pre-classifier**: Querying Gemini for every bank transaction is slow and resource-heavy. Implementing a local lookup parser that matches common descriptions (e.g. `"Netflix" -> Nöjen`, `"Ica" -> Mat & dryck -> Livsmedel`) will bypass AI API calls for known recurring items, reducing latency.
-* **Few-shot Prompting**: Ingest historical category corrections and inject them as few-shot training examples into the Gemini prompt to dynamically improve classification accuracy over time.
+### 6. 🤖 Ingestion Optimization
+* **Local Pre-classification Rules**: Built [preClassifier.ts](file:///home/fredrik/Documents/GitHub/economy-overview/src/lib/preClassifier.ts) to instantly resolve categories for common services (ICA, Swish, Netflix, Lön), skipping AI calls for known descriptions.
+* **Prompt Batching**: Configured the categorization API to batch unclassified lines in chunks of 50 before sending them to Gemini 2.5 Flash, ensuring token compliance and parsing reliability.
+
+---
+
+## 🚀 Future Roadmap & Enhancements
+
+For future development cycles, the following improvements are recommended:
+
+* **Database Indexing**: Add index annotations in [schema.prisma](file:///home/fredrik/Documents/GitHub/economy-overview/prisma/schema.prisma) on transaction `date` and `area`, and balance `date` to optimize queries on large datasets.
+* **Database-Backed Taxonomy**: Migrate the hardcoded taxonomy mapping from [upload/page.tsx](file:///home/fredrik/Documents/GitHub/economy-overview/src/app/upload/page.tsx) to database models to allow editing categories directly in the browser.
+* **Hash-Based Deduplication**: Generate MD5/SHA256 hashes of transaction fields (amount, date, description) to handle identical transactions occurring on the same day without skipping valid separate purchases.
+* **Few-shot Prompting**: Save category adjustments to database records, and feed user corrections back as few-shot training prompts to the Gemini classifier to improve categorization accuracy over time.

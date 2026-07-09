@@ -2,14 +2,26 @@
 
 import { useTranslation } from "@/lib/i18n";
 
-export function Topbar() {
+interface TopbarProps {
+  onMenuToggle: () => void;
+}
+
+export function Topbar({ onMenuToggle }: TopbarProps) {
   const { lang, setLang } = useTranslation();
 
   return (
     <header className="w-full sticky top-0 z-40 bg-slate-50/80 backdrop-blur-xl flex justify-between items-center px-6 h-16 ml-0 md:pl-72">
       <div className="flex items-center gap-4">
+        <button
+          onClick={onMenuToggle}
+          className="md:hidden p-2 text-slate-500 hover:text-slate-800 transition-colors flex items-center justify-center rounded-lg hover:bg-slate-100"
+        >
+          <span className="material-symbols-outlined">menu</span>
+        </button>
+        
         {/* Only visual search bar for now */}
         <div className="relative hidden md:block">
+
           <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-sm">search</span>
           <input 
             className="bg-surface-container-low border-none rounded-full pl-10 pr-4 py-1.5 text-sm focus:ring-2 focus:ring-primary w-64 transition-all" 

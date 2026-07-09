@@ -8,12 +8,14 @@ This application takes your raw bank transactions and transforms them into actio
 
 ## 🌟 Key Features
 
-- **Automagical AI Categorization:** Drag and drop raw CSV exports from your bank. The app uses Google's bleeding-edge **Gemini 2.5 Flash** to automatically map your transactions to a strictly defined 3-Tier Taxonomy (Area -> Type -> Subtype).
-- **The Four Bucket Model:** Visually map your net capital across four distinct buckets (*Buffer*, *Preserve*, *Growth*, and *Play*), complete with future value projections based on compound interest.
-- **Historical Analytics:** Track key metrics over time including your Total Debt, Own Capital (Net Worth), Solvency (Soliditet), and your Liquidity Runway (how many months you can survive on your capital based on your 6-month trailing average spend).
-- **Deep Spending Insights:** Analyze your expenses month-over-month, broken down by exact Types and Subtypes (e.g., *Utgift -> Transport -> Drivmedel*).
-- **Google Sheets Backup:** Natively export your entire SQLite transaction database back to a Google Sheet for ultimate data safety and portability.
+- **Hybrid Rules + AI Categorization:** Drag and drop raw CSV exports from your bank. Known recurring items (e.g. Swish, Spotify, ICA) are classified instantly using a local regex pre-classifier, while the rest are batched and classified in chunks using Google's **Gemini 2.5 Flash** API.
+- **The Four Bucket Model:** Visually map your net capital across four distinct buckets (*Buffer*, *Preserve*, *Growth*, and *Play*), complete with progress bars tracking targets set in mapping settings.
+- **Historical Analytics:** Track key metrics over time including your Total Debt, Own Capital (Net Worth), Solvency (Soliditet), and your Liquidity Runway (how many months you can survive based on trailing spend).
+- **Deep Spending Insights:** Analyze your expenses month-over-month, filter by year/month, and click on categories to drill down into the transaction ledgers.
+- **Google Sheets Integration:** Import spreadsheets directly, or natively export your SQLite transaction database back to a Google Sheet for ultimate safety.
 - **Bilingual Support:** Fully localized in both Swedish and English.
+- **Admin Control Panel**: View database statistics (transactions, balances, mapping counts) and safely wipe database data.
+- **Security First**: Middleware enforcements secure all pages and API routes against unauthorized visits.
 
 ---
 
@@ -71,6 +73,24 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser.
+
+### 🐳 Running with Docker Compose
+
+Alternatively, you can build and run the entire stack inside a Docker container:
+
+1. Configure your `.env` and `.env.local` files in the project root.
+2. Build the Docker container image:
+   ```bash
+   docker-compose build
+   ```
+3. Boot the container service:
+   ```bash
+   docker-compose up
+   ```
+4. Access [http://localhost:3000](http://localhost:3000) inside your web browser.
+
+> [!NOTE]
+> On startup, Docker Compose will automatically execute `npx prisma db push` to initialize and align your SQLite schema. The SQLite database file will persist across runs in a named Docker volume (`prisma-db`).
 
 ---
 

@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
+    // 1. Verify Authentication
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get('date');
     const compareDateParam = searchParams.get('compareDate');
@@ -43,8 +51,7 @@ export async function GET(request: Request) {
           const desc = bal.description || "";
           const b = bucketByDesc[desc] as keyof typeof buckets;
           if (b) {
-            // Fix double counting: subtract if it's a debt/liability
-            const isDebt = bal.type?.toLowerCase().includes("skuld");
+            const isDebt = bal.type?.toLowerCase().includes("skuld") || bal.type?.toLowerCase() === "skulder";
             const value = isDebt ? -Math.abs(bal.value) : bal.value;
             buckets[b] += value;
           }
@@ -61,7 +68,8 @@ export async function GET(request: Request) {
     targetsRes.forEach(t => targets[t.bucket] = t.targetAmount);
 
     return NextResponse.json({ buckets, compareBuckets, targets, availableDates });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

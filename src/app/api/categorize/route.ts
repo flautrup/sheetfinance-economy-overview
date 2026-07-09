@@ -1,8 +1,30 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { preClassify } from "@/lib/preClassifier";
+
+interface CategorizedItem {
+  id: number;
+  area: string;
+  type: string;
+  category: string;
+}
+
+interface RawTransaction {
+  date: string;
+  description: string;
+  amount: number;
+}
 
 export async function POST(req: Request) {
   try {
+    // 1. Verify Session
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { transactions } = await req.json();
     if (!transactions || !Array.isArray(transactions)) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
@@ -13,11 +35,44 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "GEMINI_API_KEY is missing in .env.local" }, { status: 500 });
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    // 2. Local Pre-classification Lookup
+    const classifiedList = transactions.map((t: RawTransaction, idx: number) => {
+      const local = preClassify(t.description);
+      if (local) {
+        return {
+          ...t,
+          area: local.area,
+          type: local.type,
+          category: local.category,
+          localClassified: true,
+          originalIdx: idx
+        };
+      }
+      return {
+        ...t,
+        area: "Utgift",
+        type: "Övrigt",
+        category: "Annat",
+        localClassified: false,
+        originalIdx: idx
+      };
+    });
 
-    // Build the taxonomy prompt
-    const prompt = `
+    const unclassified = classifiedList.filter(t => !t.localClassified);
+
+    // 3. Forward Remaining Items in Batches to Gemini
+    if (unclassified.length > 0) {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+      const BATCH_SIZE = 50;
+      const batchedClassifications: CategorizedItem[] = [];
+
+      for (let i = 0; i < unclassified.length; i += BATCH_SIZE) {
+        const batch = unclassified.slice(i, i + BATCH_SIZE);
+        
+        // Build taxonomy prompt
+        const prompt = `
 You are a highly accurate financial transaction categorizer. You must strictly use ONLY the following taxonomy (Area -> Type -> Category/Subtype) to categorize the provided transactions based on their descriptions. Do not invent categories.
 
 Taxonomy:
@@ -34,7 +89,7 @@ Inkomst -> Inkomst -> [Lön, Sommarjobb, Gåva, Övrig inkomst, A-kassa, Studieb
 Överföring -> Överföring -> [Sparande, Bankkonto, Fonder, Aktier, Pensionsspar, Madrassen, Sparmål, Övrigt]
 
 Input Transactions:
-${JSON.stringify(transactions.map((t: any, index: number) => ({ id: index, description: t.description, amount: t.amount })), null, 2)}
+${JSON.stringify(batch.map((t) => ({ id: t.originalIdx, description: t.description, amount: t.amount })), null, 2)}
 
 Output JSON ONLY! Return an array of objects with the exact schema:
 [ { "id": number, "area": string, "type": string, "category": string } ]
@@ -43,33 +98,42 @@ If an amount is positive, it's likely an "Inkomst" or "Överföring". If an amou
 Do not wrap the JSON in markdown blocks like \`\`\`json, just return raw JSON string.
 `;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text().trim();
-    
-    // Parse the JSON (clean up markdown if Gemini decides to include it anyway)
-    const cleanedText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
-    let categories;
-    try {
-      categories = JSON.parse(cleanedText);
-    } catch (parseError) {
-      console.error("Failed to parse Gemini output:", cleanedText);
-      throw new Error("AI returned invalid JSON");
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text().trim();
+        const cleanedText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+
+        try {
+          const parsed = JSON.parse(cleanedText) as CategorizedItem[];
+          batchedClassifications.push(...parsed);
+        } catch {
+          console.error("Failed to parse Gemini output:", cleanedText);
+          throw new Error("AI returned invalid JSON");
+        }
+      }
+
+      // Merge batched classifications
+      unclassified.forEach(tx => {
+        const cat = batchedClassifications.find(c => c.id === tx.originalIdx);
+        tx.area = cat ? cat.area : "Utgift";
+        tx.type = cat ? cat.type : "Övrigt";
+        tx.category = cat ? cat.category : "Annat";
+      });
     }
 
-    // Merge categories back into transactions
-    const categorizedTransactions = transactions.map((t: any, idx: number) => {
-      const cat = categories.find((c: any) => c.id === idx);
-      return {
-        ...t,
-        area: cat ? cat.area : "Utgift",
-        type: cat ? cat.type : "Övrigt",
-        category: cat ? cat.category : "Annat"
-      };
-    });
+    // Format output
+    const finalTransactions = classifiedList.map(t => ({
+      date: t.date,
+      description: t.description,
+      amount: t.amount,
+      area: t.area,
+      type: t.type,
+      category: t.category
+    }));
 
-    return NextResponse.json({ transactions: categorizedTransactions });
-  } catch (error: any) {
+    return NextResponse.json({ transactions: finalTransactions });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("LLM Categorization error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

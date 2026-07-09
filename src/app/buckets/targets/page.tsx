@@ -45,7 +45,7 @@ export default function BucketTargetsPage() {
         body: JSON.stringify({ targets })
       });
       setMessage("Målen sparades framgångsrikt!");
-    } catch (error: any) {
+    } catch {
       setMessage("Ett fel uppstod.");
     } finally {
       setIsSaving(false);

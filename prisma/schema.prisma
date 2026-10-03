@@ -12,6 +12,7 @@ datasource db {
 
 model Transaction {
   id              String   @id @default(uuid())
+  hash            String?  @unique // Deterministic SHA-256 fingerprint for deduplication
   date            DateTime // Datum
   area            String?  // Omrade
   category        String?  // Kategori
@@ -23,6 +24,13 @@ model Transaction {
   amount          Float    // Summa
   note            String?  // Anteckning
   createdAt       DateTime @default(now())
+
+  @@index([hash])
+  @@index([date])
+  @@index([area, date])
+  @@index([category])
+  @@index([account])
+  @@index([area, type, category])
 }
 
 model Balance {
@@ -33,6 +41,9 @@ model Balance {
   type            String?  // BalTyp
   value           Float    // BalVärde
   createdAt       DateTime @default(now())
+
+  @@index([date])
+  @@index([type])
 }
 
 model BucketMapping {
@@ -66,4 +77,17 @@ model TaxonomyNode {
   createdAt DateTime @default(now())
 
   @@unique([area, type, category])
+}
+
+model UserCorrection {
+  id                 String   @id @default(uuid())
+  description        String   @unique // Normalized description string
+  correctedArea      String
+  correctedType      String
+  correctedCategory  String
+  usageCount         Int      @default(1)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([description])
 }

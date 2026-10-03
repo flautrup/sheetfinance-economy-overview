@@ -32,19 +32,55 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No transactions found in database to export" }, { status: 400 });
     }
 
-    // Prepare data for Google Sheets
+    // Detect spreadsheet sheets to find "Transaktioner" or fallback to first sheet
+    let targetSheetTitle = "Sheet1";
+    try {
+      const metaRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        }
+      );
+      if (metaRes.ok) {
+        const metaData = await metaRes.json();
+        const titles: string[] = (metaData.sheets || []).map((s: { properties?: { title?: string } }) => s.properties?.title || "");
+        const matched = titles.find(t => t.toLowerCase().includes("transaktion"));
+        if (matched) targetSheetTitle = matched;
+        else if (titles.length > 0 && titles[0]) targetSheetTitle = titles[0];
+      }
+    } catch (err) {
+      console.warn("Could not inspect sheet titles, falling back to Sheet1:", err);
+    }
+
+    // Prepare complete 10-column data for Google Sheets
     const values = [
-      ["Datum", "Beskrivning", "Belopp", "Område", "Kategori"],
+      [
+        "Datum",
+        "Omrade",
+        "Kategori",
+        "Typ",
+        "Beskrivning",
+        "Konto",
+        "Överföring från konto",
+        "Överföring till konto",
+        "Summa",
+        "Anteckning"
+      ],
       ...transactions.map(t => [
-        t.date.toISOString().substring(0, 10),
-        t.description,
-        t.amount.toString(),
+        t.date instanceof Date ? t.date.toISOString().substring(0, 10) : String(t.date).substring(0, 10),
         t.area || "",
-        t.category || ""
+        t.category || "",
+        t.type || "",
+        t.description || "",
+        t.account || "",
+        t.transferFrom || "",
+        t.transferTo || "",
+        t.amount.toString(),
+        t.note || ""
       ])
     ];
 
-    const clearUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sheet1:clear`;
+    const clearUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(targetSheetTitle)}:clear`;
     const clearRes = await fetch(clearUrl, {
       method: "POST",
       headers: {
@@ -58,7 +94,7 @@ export async function POST(req: Request) {
       console.error("Failed to clear sheet:", err);
     }
 
-    const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sheet1!A1?valueInputOption=USER_ENTERED`;
+    const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(targetSheetTitle)}!A1?valueInputOption=USER_ENTERED`;
     const updateRes = await fetch(updateUrl, {
       method: "PUT",
       headers: {
@@ -66,7 +102,7 @@ export async function POST(req: Request) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        range: "Sheet1!A1",
+        range: `${targetSheetTitle}!A1`,
         majorDimension: "ROWS",
         values: values
       })
@@ -78,7 +114,7 @@ export async function POST(req: Request) {
       throw new Error(updateData.error?.message || "Failed to write to Google Sheet");
     }
 
-    return NextResponse.json({ success: true, rowsExported: transactions.length });
+    return NextResponse.json({ success: true, rowsExported: transactions.length, sheet: targetSheetTitle });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Export error:", error);

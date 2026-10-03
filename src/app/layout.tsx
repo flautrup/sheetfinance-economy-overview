@@ -9,8 +9,8 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
 
 export const metadata: Metadata = {
-  title: "SheetFinance | Overview",
-  description: "Economy Overview Application",
+  title: "Balans | Overview",
+  description: "Balans - Din personliga ekonomiöversikt och förmögenhetsplanerare",
 };
 
 export default function RootLayout({

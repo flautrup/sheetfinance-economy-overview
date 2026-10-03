@@ -1,12 +1,12 @@
-# SheetFinance: System Architecture & Improvement Plan
+# Balans: System Architecture & Improvement Plan
 
-This document provides a comprehensive walkthrough of the **SheetFinance** codebase, its architectural components, database schema, data ingestion pipeline, and a detailed plan for future engineering improvements.
+This document provides a comprehensive walkthrough of the **Balans** codebase, its architectural components, database schema, data ingestion pipeline, and a detailed plan for future engineering improvements.
 
 ---
 
 ## 🏗️ System Architecture
 
-SheetFinance is built as a unified web application using **Next.js 14 (App Router)**, **TypeScript**, and **Tailwind CSS**. It couples a local SQLite database using **Prisma ORM** with external integrations such as the **Google Sheets API** (for data backup and import) and the **Gemini API** (for automagical transaction classification).
+Balans is built as a unified web application using **Next.js 14 (App Router)**, **TypeScript**, and **Tailwind CSS**. It couples a local SQLite database using **Prisma ORM** with external integrations such as the **Google Sheets API** (for data backup and import) and the **Gemini API** (for automagical transaction classification).
 
 ### High-Level System Flow
 
@@ -95,6 +95,7 @@ The project utilizes Prisma as an ORM to interact with a SQLite database (`prism
 erDiagram
     Transaction {
         String id PK
+        String hash UK
         DateTime date
         String area
         String category
@@ -130,6 +131,25 @@ erDiagram
         Float targetAmount
         Float expectedGrowth
         Int horizonYears
+    }
+
+    TaxonomyNode {
+        String id PK
+        String area
+        String type
+        String category
+        DateTime createdAt
+    }
+
+    UserCorrection {
+        String id PK
+        String description UK
+        String correctedArea
+        String correctedType
+        String correctedCategory
+        Int usageCount
+        DateTime createdAt
+        DateTime updatedAt
     }
 ```
 
@@ -230,11 +250,39 @@ The following optimizations have been fully implemented, compiling successfully 
 
 ---
 
-## 🚀 Future Roadmap & Enhancements
+### 8. 🔍 Occurrence-Aware Hash Deduplication & Database Indexing
+* **Composite SHA-256 Fingerprinting**: Generates deterministic SHA-256 hashes incorporating bank reference/saldo or occurrence index (`date|amount|description|account|occurrenceIndex`). This preserves legitimate identical same-day transactions (e.g. buying two separate 35 kr coffees) while preventing duplicate re-uploads.
+* **Database Indexing**: Added indexes on `Transaction([hash], [date], [area, date], [category])` and `Balance([date], [type])` in [schema.prisma](file:///home/fredrik/Documents/GitHub/economy-overview/prisma/schema.prisma) to ensure sub-millisecond lookups across tens of thousands of rows.
+* **$O(1)$ Batch Ingestion**: Replaced the sequential N+1 query loop with a single batch `in: candidateHashes` query and atomic `createMany`.
+* **Historical Backfill**: Successfully backfilled all existing 28,202 historical transactions in `prisma/dev.db` with deterministic hashes.
 
-For future development cycles, the following improvements are recommended:
+### 9. 🏷️ Database-Backed Taxonomy & Custom Merchant Rules
+* **Persistent Models**: Introduced `TaxonomyNode` and dynamic database rules in [schema.prisma](file:///home/fredrik/Documents/GitHub/economy-overview/prisma/schema.prisma).
+* **Seeded Swedish Rules Engine**: Initialized 75 merchant keyword rules covering grocery chains, streaming platforms, transit, fuel, utilities, and restaurants in [defaultRules.ts](file:///home/fredrik/Documents/GitHub/economy-overview/src/lib/defaultRules.ts).
+* **Interactive Rule Simulator & Taxonomy UI**: Upgraded [buckets/mapping/page.tsx](file:///home/fredrik/Documents/GitHub/economy-overview/src/app/buckets/mapping/page.tsx) with a live Rule Simulator, real-time search filters, taxonomy creation, and rule deletion confirmations.
 
-* **Database Indexing**: Add index annotations in [schema.prisma](file:///home/fredrik/Documents/GitHub/economy-overview/prisma/schema.prisma) on transaction `date` and `area`, and balance `date` to optimize queries on large datasets.
-* **Database-Backed Taxonomy**: Migrate the hardcoded taxonomy mapping from [upload/page.tsx](file:///home/fredrik/Documents/GitHub/economy-overview/src/app/upload/page.tsx) to database models to allow editing categories directly in the browser.
-* **Occurrence-Aware Hash Deduplication**: Generate deterministic SHA-256 fingerprint hashes incorporating bank running balances (`Saldo`/`Referens`) or same-day occurrence counters (`date`, `amount`, `description`, `occurrenceIndex`). This resolves the N+1 loop with $O(1)$ batch lookups while preserving valid same-day identical transactions (e.g. buying two separate 35 kr coffees).
-* **Few-shot Prompting**: Save category adjustments to database records, and feed user corrections back as few-shot training prompts to the Gemini classifier to improve categorization accuracy over time.
+### 10. 🧠 Gemini Few-Shot Self-Learning Feedback Loop
+* **User Correction Storage**: Added `UserCorrection` model to log manual overrides when users edit categories or areas.
+* **Dynamic Few-Shot Injection**: [api/categorize/route.ts](file:///home/fredrik/Documents/GitHub/economy-overview/src/app/api/categorize/route.ts) queries the top 20 most frequent user corrections and injects them directly into Gemini 2.5 Flash prompts, allowing the AI to learn user-specific classification habits automatically.
+* **Continuous Feedback**: User corrections are captured both during CSV upload review and directly from the Transaction Ledger.
+
+### 11. 🔄 Google Sheets Sync Parity & Data Safety
+* **10-Column Canonical Round-Trip**: Unified [api/export/route.ts](file:///home/fredrik/Documents/GitHub/economy-overview/src/app/api/export/route.ts) and [api/upload/route.ts](file:///home/fredrik/Documents/GitHub/economy-overview/src/app/api/upload/route.ts) across the canonical 10 columns (`Datum`, `Omrade`, `Kategori`, `Typ`, `Beskrivning`, `Konto`, `Överföring från konto`, `Överföring till konto`, `Summa`, `Anteckning`).
+* **Resilient Header Matching**: Safely handles Swedish character variants (`Område`/`Omrade`, `Summa`/`Belopp`, etc.) and automatically detects target sheet tabs.
+* **Import Mode Selection**: Added dual-mode import in [upload/page.tsx](file:///home/fredrik/Documents/GitHub/economy-overview/src/app/upload/page.tsx):
+  - **Lägg till & Sammanfoga (Default)**: Merges new rows and automatically skips existing transactions via SHA-256 fingerprint deduplication.
+  - **Ersätt all data**: Clears previous transactions with an explicit confirmation safeguard.
+
+### 12. 📊 Transaction Ledger & Management UI (`/transactions`)
+* **Dedicated Ledger View**: Built [transactions/page.tsx](file:///home/fredrik/Documents/GitHub/economy-overview/src/app/transactions/page.tsx) featuring responsive data tables, KPI metrics, and pagination.
+* **Real-Time Filters & Search**: Search across description, note, or account with debounced queries, cascading Area/Type/Category dropdowns, and date range filters.
+* **SHA-256 Fingerprint Inspector**: Inspect transaction fingerprints, UUIDs, occurrence index explanations, and timestamps.
+* **Inline Reclassification & Batch Actions**: Select multiple transactions for batch categorization or deletion, and edit individual transactions with immediate feedback to the AI learning loop.
+
+---
+
+## 🚀 Future Roadmap & Next Horizons
+
+* **Automated Bank API Ingestion**: Direct Open Banking (PSD2 / Tink) integration for automated daily transaction synchronization.
+* **Multi-Currency Support**: Automated conversion rates for foreign purchases and accounts.
+* **Export Scheduling**: Automated weekly/monthly backups to Google Drive or Google Sheets via cron.

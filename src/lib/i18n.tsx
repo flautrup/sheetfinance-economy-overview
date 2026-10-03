@@ -24,7 +24,8 @@ export const translations = {
     pasteBalances: "Klistra in Balansräkning (från Google Sheets)",
     saveData: "Spara Data",
     dataSaved: "Data sparades framgångsrikt!",
-    saving: "Sparar..."
+    saving: "Sparar...",
+    transactions: "Transaktioner"
   },
   en: {
     dashboard: "Dashboard",
@@ -45,7 +46,8 @@ export const translations = {
     pasteBalances: "Paste Balances (from Google Sheets)",
     saveData: "Save Data",
     dataSaved: "Data saved successfully!",
-    saving: "Saving..."
+    saving: "Saving...",
+    transactions: "Transactions"
   }
 };
 

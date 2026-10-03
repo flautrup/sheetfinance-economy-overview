@@ -1,4 +1,4 @@
-# Economy Overview Dashboard
+# Balans: Personal Finance & Economy Overview Dashboard
 
 A modern, highly visual, and comprehensive personal finance dashboard built to give you total control over your economy. 
 
@@ -8,11 +8,14 @@ This application takes your raw bank transactions and transforms them into actio
 
 ## 🌟 Key Features
 
-- **Hybrid Rules + AI Categorization:** Drag and drop raw CSV exports from your bank. Known recurring items (e.g. Swish, Spotify, ICA) are classified instantly using a local regex pre-classifier, while the rest are batched and classified in chunks using Google's **Gemini 2.5 Flash** API.
+- **Occurrence-Aware SHA-256 Deduplication:** Generates deterministic fingerprints from date, amount, description, account, and daily occurrence index to support legitimate identical same-day purchases while preventing duplicate re-uploads.
+- **Hybrid Rules + AI Categorization:** Drag and drop raw CSV exports from your bank. 75 pre-seeded Swedish merchant rules match common vendors instantly, while unclassified rows are batched to Google's **Gemini 2.5 Flash** API with dynamic few-shot learning from past user corrections.
+- **Transaction Ledger & Management (`/transactions`):** Dedicated high-performance ledger with instant debounced search, cascading filters (Area, Type, Category, Date range), sorting, inline reclassification, batch actions, and SHA-256 fingerprint inspection.
 - **The Four Bucket Model:** Visually map your net capital across four distinct buckets (*Buffer*, *Preserve*, *Growth*, and *Play*), complete with progress bars tracking targets set in mapping settings.
+- **Custom Rules & Taxonomy Simulator (`/buckets/mapping`):** Manage taxonomy nodes and test merchant description patterns live in the browser with an interactive Rule Simulator.
 - **Historical Analytics:** Track key metrics over time including your Total Debt, Own Capital (Net Worth), Solvency (Soliditet), and your Liquidity Runway (how many months you can survive based on trailing spend).
 - **Deep Spending Insights:** Analyze your expenses month-over-month, filter by year/month, and click on categories to drill down into the transaction ledgers.
-- **Google Sheets Integration:** Import spreadsheets directly, or natively export your SQLite transaction database back to a Google Sheet for ultimate safety.
+- **Google Sheets Sync Parity:** Full 10-column canonical schema round-trip. Choose between safe merge (with SHA-256 deduplication) or full overwrite with confirmation safeguards.
 - **Bilingual Support:** Fully localized in both Swedish and English.
 - **Admin Control Panel**: View database statistics (transactions, balances, mapping counts) and safely wipe database data.
 - **Security First**: Middleware enforcements secure all pages and API routes against unauthorized visits.

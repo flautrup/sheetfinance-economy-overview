@@ -18,6 +18,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { href: "/buckets", label: t("fourBuckets"), icon: "inventory_2" },
     { href: "/wealth-ladder", label: t("wealthLadder"), icon: "moving" },
     { href: "/spending", label: t("spending"), icon: "payments" },
+    { href: "/transactions", label: t("transactions"), icon: "receipt_long" },
     { href: "/upload", label: t("upload"), icon: "upload_file" },
     { href: "/buckets/mapping", label: "Mapping & Scenarios", icon: "tune" },
   ];
@@ -37,7 +38,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
           <div>
             <h1 className="text-lg font-black text-emerald-800 dark:text-emerald-100 font-headline uppercase tracking-widest leading-none">
-              SheetFinance
+              Balans
             </h1>
             <p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold opacity-60">
               Growth & Precision

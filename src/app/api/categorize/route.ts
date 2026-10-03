@@ -109,19 +109,33 @@ export async function POST(req: Request) {
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
+      // Fetch top user corrections for dynamic few-shot learning
+      const userCorrections = await prisma.userCorrection.findMany({
+        orderBy: { usageCount: "desc" },
+        take: 20,
+      });
+
+      let fewShotExamples = "";
+      if (userCorrections.length > 0) {
+        fewShotExamples = `\nUser-Verified Examples (Learn from these preferred Swedish classifications):\n` +
+          userCorrections
+            .map(c => `- "${c.description}" -> Area: "${c.correctedArea}", Type: "${c.correctedType}", Category: "${c.correctedCategory}"`)
+            .join("\n") + "\n";
+      }
+
       const BATCH_SIZE = 50;
       const batchedClassifications: CategorizedItem[] = [];
 
       for (let i = 0; i < unclassified.length; i += BATCH_SIZE) {
         const batch = unclassified.slice(i, i + BATCH_SIZE);
         
-        // Build taxonomy prompt
+        // Build taxonomy prompt with dynamic few-shot guidance
         const prompt = `
 You are a highly accurate financial transaction categorizer. You must strictly use ONLY the following taxonomy (Area -> Type -> Category/Subtype) to categorize the provided transactions based on their descriptions. Do not invent categories.
 
 Taxonomy:
 ${taxonomyString}
-
+${fewShotExamples}
 Input Transactions:
 ${JSON.stringify(batch.map((t) => ({ id: t.originalIdx, description: t.description, amount: t.amount })), null, 2)}
 

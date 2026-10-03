@@ -2,14 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-
-const defaultRules = [
-  { keyword: "ica", area: "Utgift", type: "Mat & dryck", category: "Livsmedel" },
-  { keyword: "netflix", area: "Utgift", type: "Nöjen/Shopping", category: "Media/Bok/Kultur" },
-  { keyword: "spotify", area: "Utgift", type: "Nöjen/Shopping", category: "Media/Bok/Kultur" },
-  { keyword: "lön", area: "Inkomst", type: "Inkomst", category: "Lön" },
-  { keyword: "swish", area: "Överföring", type: "Överföring", category: "Sparande" },
-];
+import { defaultRules } from "@/lib/defaultRules";
 
 export async function GET() {
   try {

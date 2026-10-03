@@ -5,16 +5,6 @@ import { useTranslation } from "@/lib/i18n";
 import { useSession, signIn } from "next-auth/react";
 import Papa from "papaparse";
 
-export default function UploadPage() {
-  const { t } = useTranslation();
-  const { data: session, status } = useSession();
-  
-  // States for existing Google Sheet Import
-  const [txSheetUrl, setTxSheetUrl] = useState("");
-  const [balSheetUrl, setBalSheetUrl] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState("");
-
 interface CategorizedTransaction {
   date: string;
   description: string;
@@ -22,7 +12,19 @@ interface CategorizedTransaction {
   area: string;
   type: string;
   category: string;
+  isUserModified?: boolean;
 }
+
+export default function UploadPage() {
+  const { t } = useTranslation();
+  const { data: session, status } = useSession();
+  
+  // States for existing Google Sheet Import
+  const [txSheetUrl, setTxSheetUrl] = useState("");
+  const [balSheetUrl, setBalSheetUrl] = useState("");
+  const [importMode, setImportMode] = useState<"merge" | "replace">("merge");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
 
   // States for AI Categorization
   const [isCategorizing, setIsCategorizing] = useState(false);
@@ -41,6 +43,14 @@ interface CategorizedTransaction {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session) return;
+
+    if (importMode === "replace") {
+      const confirmWipe = window.confirm(
+        "VARNING: 'Ersätt all data' raderar alla tidigare transaktioner i databasen och ersätter dem med Google Sheet-innehållet. Vill du fortsätta?"
+      );
+      if (!confirmWipe) return;
+    }
+
     setIsSubmitting(true);
     setMessage("");
 
@@ -48,12 +58,18 @@ interface CategorizedTransaction {
       const res = await fetch("/api/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ txSheetUrl, balSheetUrl, accessToken: (session as { accessToken?: string }).accessToken }),
+        body: JSON.stringify({ 
+          txSheetUrl, 
+          balSheetUrl, 
+          accessToken: (session as { accessToken?: string }).accessToken,
+          mode: importMode 
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch from Google Sheets");
       
-      setMessage(`${t("dataSaved")} (Transaktioner: ${data.txCount}, Balans: ${data.balCount})`);
+      const actionText = importMode === "replace" ? "ersattes helt" : "sammanfogades (dubbletter hoppades över)";
+      setMessage(`${t("dataSaved")} (Transaktioner: ${data.txCount} ${actionText}, Balans: ${data.balCount})`);
       setTxSheetUrl("");
       setBalSheetUrl("");
     } catch (error) {
@@ -134,12 +150,14 @@ interface CategorizedTransaction {
     // Auto-select the first available category in this type
     const availableCategories = taxonomy[newArea]?.[newType] || [];
     updated[index].category = availableCategories[0] || "";
+    updated[index].isUserModified = true;
     setParsedTransactions(updated);
   };
 
   const handleCategoryChange = (index: number, newCategory: string) => {
     const updated = [...parsedTransactions];
     updated[index].category = newCategory;
+    updated[index].isUserModified = true;
     setParsedTransactions(updated);
   };
 
@@ -151,14 +169,38 @@ interface CategorizedTransaction {
         account: accountOwner || "Standardkonto"
       }));
 
+      // Collect any manually overridden transactions to train the AI few-shot loop
+      const corrections = parsedTransactions
+        .filter(tx => tx.isUserModified && tx.description)
+        .map(tx => ({
+          description: tx.description,
+          area: tx.area,
+          type: tx.type,
+          category: tx.category
+        }));
+
+      if (corrections.length > 0) {
+        fetch("/api/categorize/corrections", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ corrections })
+        }).catch(err => console.error("Failed to save user corrections:", err));
+      }
+
       const res = await fetch("/api/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transactions: finalTxs })
       });
       if (!res.ok) throw new Error("Misslyckades att spara transaktioner");
-      
-      setMessage(`Sparade ${parsedTransactions.length} transaktioner i databasen.`);
+      const data = await res.json();
+      const savedCount = typeof data.count === "number" ? data.count : parsedTransactions.length;
+      const skippedCount = parsedTransactions.length - savedCount;
+      if (skippedCount > 0) {
+        setMessage(`Sparade ${savedCount} nya transaktioner (${skippedCount} dubbletter ignorerades).`);
+      } else {
+        setMessage(`Sparade ${savedCount} transaktioner i databasen.`);
+      }
       setParsedTransactions([]);
       setAccountOwner("");
     } catch (err) {
@@ -277,36 +319,115 @@ interface CategorizedTransaction {
             <p className="text-sm text-on-surface-variant mb-6">
               Hämta transaktioner och balansräkning direkt från dina befintliga ark.
             </p>
-            <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4 items-end">
-              <div className="flex-1">
-                <label className="block text-xs font-bold text-on-surface uppercase tracking-widest mb-2">
-                  Transaktioner URL
-                </label>
-                <input
-                  type="text"
-                  className="w-full p-3 bg-surface-container-low border border-slate-200 rounded-lg outline-none text-sm"
-                  value={txSheetUrl}
-                  onChange={(e) => setTxSheetUrl(e.target.value)}
-                />
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-on-surface uppercase tracking-widest mb-2">
+                    Transaktioner URL
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-3 bg-surface-container-low border border-slate-200 rounded-lg outline-none text-sm focus:ring-2 focus:ring-primary"
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    value={txSheetUrl}
+                    onChange={(e) => setTxSheetUrl(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-on-surface uppercase tracking-widest mb-2">
+                    Balansräkning URL
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-3 bg-surface-container-low border border-slate-200 rounded-lg outline-none text-sm focus:ring-2 focus:ring-primary"
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    value={balSheetUrl}
+                    onChange={(e) => setBalSheetUrl(e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="flex-1">
-                <label className="block text-xs font-bold text-on-surface uppercase tracking-widest mb-2">
-                  Balansräkning URL
+
+              {/* Import Mode Selector */}
+              <div>
+                <label className="block text-xs font-bold text-on-surface uppercase tracking-widest mb-3">
+                  Importläge
                 </label>
-                <input
-                  type="text"
-                  className="w-full p-3 bg-surface-container-low border border-slate-200 rounded-lg outline-none text-sm"
-                  value={balSheetUrl}
-                  onChange={(e) => setBalSheetUrl(e.target.value)}
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setImportMode("merge")}
+                    className={`p-4 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                      importMode === "merge"
+                        ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-sm"
+                        : "border-slate-200 hover:border-slate-300 bg-surface-container-low/50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-bold text-sm text-on-surface flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary text-base">merge_type</span>
+                        Lägg till & Sammanfoga
+                      </span>
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                        Rekommenderas
+                      </span>
+                    </div>
+                    <p className="text-xs text-on-surface-variant">
+                      Sparar nya transaktioner och hoppar säkert över dubbletter med SHA-256 fingeravtryck.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setImportMode("replace")}
+                    className={`p-4 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                      importMode === "replace"
+                        ? "border-amber-500 bg-amber-500/5 ring-2 ring-amber-500/20 shadow-sm"
+                        : "border-slate-200 hover:border-slate-300 bg-surface-container-low/50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-bold text-sm text-on-surface flex items-center gap-2">
+                        <span className="material-symbols-outlined text-amber-600 text-base">sync_saved_locally</span>
+                        Ersätt all data
+                      </span>
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                        Total överskrivning
+                      </span>
+                    </div>
+                    <p className="text-xs text-on-surface-variant">
+                      Raderar tidigare transaktioner och ersätter helt med innehållet från Google Sheet.
+                    </p>
+                  </button>
+                </div>
+
+                {importMode === "replace" && (
+                  <div className="mt-3 flex items-center gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 font-medium">
+                    <span className="material-symbols-outlined text-amber-600 text-base">warning</span>
+                    <span>Obs: När du importerar med &quot;Ersätt all data&quot; raderas all befintlig transaktionsdata i databasen.</span>
+                  </div>
+                )}
               </div>
-              <button
-                type="submit"
-                disabled={isSubmitting || (!txSheetUrl && !balSheetUrl)}
-                className="px-6 py-3 bg-slate-800 text-white font-bold rounded-lg hover:bg-slate-900 disabled:opacity-50 transition-colors whitespace-nowrap"
-              >
-                {isSubmitting ? "Hämtar..." : "Importera Ark"}
-              </button>
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isSubmitting || (!txSheetUrl && !balSheetUrl)}
+                  className={`px-8 py-3 text-white font-bold rounded-lg shadow-sm disabled:opacity-50 transition-colors whitespace-nowrap flex items-center gap-2 ${
+                    importMode === "replace"
+                      ? "bg-amber-600 hover:bg-amber-700"
+                      : "bg-slate-800 hover:bg-slate-900"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    {importMode === "replace" ? "swap_horiz" : "cloud_download"}
+                  </span>
+                  {isSubmitting 
+                    ? "Hämtar..." 
+                    : importMode === "replace" 
+                      ? "Ersätt & Importera data" 
+                      : "Sammanfoga & Importera data"}
+                </button>
+              </div>
             </form>
           </div>
 

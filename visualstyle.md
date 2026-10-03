@@ -4,7 +4,7 @@
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Dashboard Overview | SheetFinance</title>
+<title>Dashboard Overview | Balans</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -101,7 +101,7 @@
 <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">account_balance</span>
 </div>
 <div>
-<h1 class="text-lg font-black text-emerald-800 tracking-tight leading-none">SheetFinance</h1>
+<h1 class="text-lg font-black text-emerald-800 tracking-tight leading-none">Balans</h1>
 <p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold opacity-60">Growth &amp; Precision</p>
 </div>
 </div>
@@ -369,8 +369,8 @@
 </section>
 <footer class="w-full py-6 mt-auto flex flex-row justify-between items-center px-6 md:px-12 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 font-inter text-xs text-slate-500">
 <div class="flex items-center gap-4">
-<p class="font-bold text-slate-900 dark:text-slate-100">SheetFinance</p>
-<p>© 2024 SheetFinance. All rights reserved.</p>
+<p class="font-bold text-slate-900 dark:text-slate-100">Balans</p>
+<p>© 2024 Balans. All rights reserved.</p>
 </div>
 <div class="flex gap-6">
 <a class="text-slate-400 hover:text-emerald-500 transition-colors" href="#">Legal</a>
@@ -408,7 +408,7 @@
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>SheetFinance | Four Bucket Model</title>
+<title>Balans | Four Bucket Model</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -499,7 +499,7 @@
 <!-- SideNavBar Shell -->
 <aside class="h-screen w-64 fixed left-0 top-0 bg-white dark:bg-slate-950 flex flex-col py-8 px-4 shadow-[1px_0_0_0_rgba(0,0,0,0.05)] z-50">
 <div class="mb-10 px-2">
-<h1 class="text-lg font-black text-emerald-800 dark:text-emerald-100 font-headline uppercase tracking-widest">SheetFinance</h1>
+<h1 class="text-lg font-black text-emerald-800 dark:text-emerald-100 font-headline uppercase tracking-widest">Balans</h1>
 <p class="text-xs text-slate-500 font-medium">Growth &amp; Precision</p>
 </div>
 <nav class="flex-1 space-y-2">
@@ -793,7 +793,7 @@
 </main>
 <!-- Footer Shell -->
 <footer class="w-full py-6 mt-auto flex flex-row justify-between items-center px-12 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 ml-0 md:pl-72">
-<p class="font-inter text-xs text-slate-500 dark:text-slate-400">© 2024 SheetFinance. All rights reserved.</p>
+<p class="font-inter text-xs text-slate-500 dark:text-slate-400">© 2024 Balans. All rights reserved.</p>
 <div class="flex gap-6">
 <a class="font-inter text-xs text-slate-400 hover:text-emerald-500 transition-colors" href="#">Legal</a>
 <a class="font-inter text-xs text-slate-400 hover:text-emerald-500 transition-colors" href="#">Privacy Policy</a>
@@ -808,7 +808,7 @@
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Monthly Spending - SheetFinance</title>
+<title>Monthly Spending - Balans</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -899,7 +899,7 @@
 <!-- SideNavBar Component -->
 <aside class="h-screen w-64 fixed left-0 top-0 bg-white dark:bg-slate-950 flex flex-col h-full py-8 px-4 shadow-[1px_0_0_0_rgba(0,0,0,0.05)] z-40">
 <div class="mb-10 px-4">
-<h1 class="text-lg font-black text-emerald-800 dark:text-emerald-100 font-headline">SheetFinance</h1>
+<h1 class="text-lg font-black text-emerald-800 dark:text-emerald-100 font-headline">Balans</h1>
 <p class="text-xs text-slate-500 font-medium tracking-wide">Growth &amp; Precision</p>
 </div>
 <nav class="flex-1 space-y-1">
@@ -1103,8 +1103,8 @@
 <!-- Footer -->
 <footer class="w-full py-6 mt-auto bg-slate-50 flex flex-row justify-between items-center px-12 border-t border-slate-200 font-inter text-xs text-slate-500">
 <div class="flex items-center gap-4">
-<span class="font-bold text-slate-900">SheetFinance</span>
-<span>© 2024 SheetFinance. All rights reserved.</span>
+<span class="font-bold text-slate-900">Balans</span>
+<span>© 2024 Balans. All rights reserved.</span>
 </div>
 <div class="flex gap-6">
 <a class="text-slate-400 hover:text-emerald-600 transition-colors" href="#">Legal</a>
@@ -1121,7 +1121,7 @@
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Wealth Ladder | SheetFinance</title>
+<title>Wealth Ladder | Balans</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -1209,7 +1209,7 @@
 <!-- Side Navigation Shell -->
 <aside class="h-screen w-64 fixed left-0 top-0 bg-white dark:bg-slate-950 shadow-[1px_0_0_0_rgba(0,0,0,0.05)] flex flex-col py-8 px-4 font-headline text-sm font-medium">
 <div class="mb-10 px-2">
-<h1 class="text-lg font-black text-emerald-800 dark:text-emerald-100">SheetFinance</h1>
+<h1 class="text-lg font-black text-emerald-800 dark:text-emerald-100">Balans</h1>
 <p class="text-xs text-on-surface-variant font-body">Growth &amp; Precision</p>
 </div>
 <nav class="flex-1 space-y-1">
@@ -1450,9 +1450,9 @@
 <!-- Sticky Footer Branding -->
 <footer class="flex flex-row justify-between items-center px-12 py-6 mt-12 bg-slate-50 border-t border-slate-200 font-inter text-xs text-slate-500">
 <div class="flex items-center gap-4">
-<span class="font-bold text-slate-900">SheetFinance</span>
+<span class="font-bold text-slate-900">Balans</span>
 <span class="text-slate-300">|</span>
-<span>© 2024 SheetFinance. All rights reserved.</span>
+<span>© 2024 Balans. All rights reserved.</span>
 </div>
 <div class="flex gap-8">
 <a class="text-slate-400 hover:text-emerald-600 transition-colors" href="#">Legal</a>
@@ -1469,7 +1469,7 @@
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>SheetFinance - General Overview</title>
+<title>Balans - General Overview</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -1559,7 +1559,7 @@
 <span class="material-symbols-outlined text-white text-xl">account_balance</span>
 </div>
 <div>
-<h1 class="text-lg font-black text-emerald-800 tracking-tight leading-none">SheetFinance</h1>
+<h1 class="text-lg font-black text-emerald-800 tracking-tight leading-none">Balans</h1>
 <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Growth &amp; Precision</p>
 </div>
 </div>
@@ -1813,7 +1813,7 @@
 <!-- Footer -->
 <footer class="ml-64 border-t border-slate-200 bg-slate-50 px-12 py-6 flex flex-row justify-between items-center">
 <div class="flex items-center gap-8">
-<p class="font-inter text-xs text-slate-500">© 2024 SheetFinance. All rights reserved.</p>
+<p class="font-inter text-xs text-slate-500">© 2024 Balans. All rights reserved.</p>
 <div class="flex gap-6">
 <a class="font-inter text-xs text-slate-400 hover:text-emerald-500 transition-colors" href="#">Legal</a>
 <a class="font-inter text-xs text-slate-400 hover:text-emerald-500 transition-colors" href="#">Privacy Policy</a>
@@ -1833,7 +1833,7 @@
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Login | SheetFinance</title>
+<title>Login | Balans</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -1935,7 +1935,7 @@
 <div class="w-14 h-14 rounded-xl emerald-pulse-gradient flex items-center justify-center mb-4 shadow-xl shadow-primary/20">
 <span class="material-symbols-outlined text-on-primary text-3xl" data-icon="inventory_2">inventory_2</span>
 </div>
-<h1 class="font-headline text-3xl font-extrabold tracking-tighter text-on-surface mb-1">SheetFinance</h1>
+<h1 class="font-headline text-3xl font-extrabold tracking-tighter text-on-surface mb-1">Balans</h1>
 <p class="font-label text-sm text-on-surface-variant font-medium tracking-wide">Growth &amp; Precision</p>
 </div>
 <!-- Login Card -->
@@ -2014,7 +2014,7 @@
 </main>
 <!-- Global Footer from Shared Components -->
 <footer class="w-full py-6 mt-auto flex flex-row justify-between items-center px-12 border-t border-slate-200 dark:border-slate-800 z-10">
-<div class="font-inter text-xs text-slate-500 dark:text-slate-400">© 2024 SheetFinance. All rights reserved.</div>
+<div class="font-inter text-xs text-slate-500 dark:text-slate-400">© 2024 Balans. All rights reserved.</div>
 <div class="flex gap-6">
 <a class="font-inter text-xs text-slate-400 hover:text-emerald-500 transition-colors" href="#">Legal</a>
 <a class="font-inter text-xs text-slate-400 hover:text-emerald-500 transition-colors" href="#">Privacy Policy</a>

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
+let cachedMonths: { data: string[]; timestamp: number } | null = null;
+
 export async function GET(request: Request) {
   try {
     // 1. Verify Session
@@ -15,18 +17,22 @@ export async function GET(request: Request) {
     const yearParam = searchParams.get("year");
     const monthParam = searchParams.get("month");
 
-    // Fetch all transaction dates to build the list of available months (YYYY-MM)
-    const txDates = await prisma.transaction.findMany({
-      select: { date: true },
-      where: { area: { in: ["Utgift", "Inkomst"] } },
-      orderBy: { date: "desc" },
-    });
+    // Cache available months for 60 seconds to avoid repeating heavy distinct scans on every request
+    const now = Date.now();
+    let availableMonths: string[] = [];
 
-    const monthsSet = new Set<string>();
-    txDates.forEach((t) => {
-      monthsSet.add(t.date.toISOString().substring(0, 7));
-    });
-    const availableMonths = Array.from(monthsSet).sort().reverse(); // e.g. ["2024-05", "2024-04"]
+    if (cachedMonths && (now - cachedMonths.timestamp < 60000)) {
+      availableMonths = cachedMonths.data;
+    } else {
+      const distinctMonths = await prisma.$queryRawUnsafe<Array<{ monthStr: string }>>(`
+        SELECT DISTINCT strftime('%Y-%m', date / 1000, 'unixepoch') as monthStr
+        FROM "Transaction"
+        WHERE area IN ('Utgift', 'Inkomst')
+        ORDER BY monthStr DESC
+      `);
+      availableMonths = distinctMonths.map((m) => m.monthStr).filter(Boolean);
+      cachedMonths = { data: availableMonths, timestamp: now };
+    }
 
     // Construct Date Filter
     let dateFilter: { gte: Date; lt?: Date };
@@ -56,6 +62,7 @@ export async function GET(request: Request) {
       const latestTransaction = await prisma.transaction.findFirst({
         where: { area: { in: ["Utgift", "Inkomst"] } },
         orderBy: { date: "desc" },
+        select: { date: true },
       });
 
       const oneYearAgo = latestTransaction ? new Date(latestTransaction.date) : new Date();
@@ -67,7 +74,7 @@ export async function GET(request: Request) {
       periodEnd = latestTransaction ? latestTransaction.date.toISOString().substring(0, 7) : new Date().toISOString().substring(0, 7);
     }
 
-    // Fetch transactions inside the filter period
+    // Fetch transactions inside the filter period with slim projection (only required fields)
     const rawTransactions = await prisma.transaction.findMany({
       where: {
         date: dateFilter,
@@ -76,6 +83,12 @@ export async function GET(request: Request) {
           { OR: [{ transferFrom: "" }, { transferFrom: null }] },
           { OR: [{ transferTo: "" }, { transferTo: null }] },
         ],
+      },
+      select: {
+        date: true,
+        amount: true,
+        area: true,
+        category: true,
       },
       orderBy: { date: "asc" },
     });

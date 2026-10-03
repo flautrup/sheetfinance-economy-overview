@@ -35,6 +35,8 @@ export default function MappingPage() {
   const [newRuleType, setNewRuleType] = useState("");
   const [newRuleCategory, setNewRuleCategory] = useState("");
   const [isSavingRule, setIsSavingRule] = useState(false);
+  const [ruleSearch, setRuleSearch] = useState("");
+  const [testDescription, setTestDescription] = useState("");
 
   // Tab 3: Taxonomy States
   const [taxonomyTree, setTaxonomyTree] = useState<Record<string, Record<string, string[]>>>({});
@@ -43,6 +45,7 @@ export default function MappingPage() {
   const [newTaxType, setNewTaxType] = useState("");
   const [newTaxCategory, setNewTaxCategory] = useState("");
   const [isSavingTax, setIsSavingTax] = useState(false);
+  const [taxSearch, setTaxSearch] = useState("");
 
   const [uiMessage, setUiMessage] = useState("");
 
@@ -402,9 +405,54 @@ export default function MappingPage() {
             </div>
           </div>
 
+          {/* Rule Simulator */}
+          <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-ambient border border-slate-100 dark:border-slate-800">
+            <h3 className="text-lg font-bold font-headline text-on-surface mb-2">Testa Regelmatchning</h3>
+            <p className="text-xs text-slate-500 mb-4">Skriv in en beskrivning från ditt bankkontoutdrag för att se om den fångas upp av någon aktiv regel.</p>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="T.ex. ICA Supermarket eller Spotify AB"
+                value={testDescription}
+                onChange={(e) => setTestDescription(e.target.value)}
+                className="flex-1 p-2.5 bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-lg outline-none text-sm"
+              />
+            </div>
+            {testDescription.trim() && (
+              <div className="mt-3 p-3 rounded-lg text-sm font-medium border border-slate-200 dark:border-slate-800">
+                {(() => {
+                  const match = rules.find((r) => testDescription.toLowerCase().includes(r.keyword.toLowerCase()));
+                  if (match) {
+                    return (
+                      <span className="text-emerald-600 dark:text-emerald-400">
+                        ✅ Matchar regel: <strong>&quot;{match.keyword}&quot;</strong> &rarr; {match.area} &gt; {match.type} &gt; {match.category}
+                      </span>
+                    );
+                  }
+                  return (
+                    <span className="text-amber-600 dark:text-amber-400">
+                      ℹ️ Ingen regel matchar. Denna transaktion skickas vidare till Gemini AI.
+                    </span>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+
           {/* Rules Listing */}
           <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-ambient">
-            <h3 className="text-lg font-bold font-headline text-on-surface mb-4">Aktiva Regler ({rules.length})</h3>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+              <h3 className="text-lg font-bold font-headline text-on-surface">
+                Aktiva Regler ({rules.length})
+              </h3>
+              <input
+                type="text"
+                placeholder="Filtrera regler..."
+                value={ruleSearch}
+                onChange={(e) => setRuleSearch(e.target.value)}
+                className="p-2 text-sm bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full sm:w-64"
+              />
+            </div>
             <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
@@ -417,22 +465,37 @@ export default function MappingPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rules.map((rule) => (
-                    <tr key={rule.id} className="border-b border-slate-50 dark:border-slate-900/50 hover:bg-slate-50/50 transition-colors font-medium">
-                      <td className="p-3 font-bold text-slate-800 dark:text-slate-200">{rule.keyword}</td>
-                      <td className="p-3">{rule.area}</td>
-                      <td className="p-3 text-slate-500">{rule.type}</td>
-                      <td className="p-3 text-slate-500">{rule.category}</td>
-                      <td className="p-3 text-right">
-                        <button
-                          onClick={() => handleDeleteRule(rule.id)}
-                          className="px-3 py-1 text-xs bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400 font-bold rounded hover:scale-95 transition-transform"
-                        >
-                          Radera
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {rules
+                    .filter((r) => {
+                      if (!ruleSearch.trim()) return true;
+                      const q = ruleSearch.toLowerCase();
+                      return (
+                        r.keyword.toLowerCase().includes(q) ||
+                        r.area.toLowerCase().includes(q) ||
+                        r.type.toLowerCase().includes(q) ||
+                        r.category.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((rule) => (
+                      <tr key={rule.id} className="border-b border-slate-50 dark:border-slate-900/50 hover:bg-slate-50/50 transition-colors font-medium">
+                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">{rule.keyword}</td>
+                        <td className="p-3">{rule.area}</td>
+                        <td className="p-3 text-slate-500">{rule.type}</td>
+                        <td className="p-3 text-slate-500">{rule.category}</td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Vill du ta bort regeln för "${rule.keyword}"?`)) {
+                                handleDeleteRule(rule.id);
+                              }
+                            }}
+                            className="px-3 py-1 text-xs bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400 font-bold rounded hover:scale-95 transition-transform"
+                          >
+                            Radera
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -498,7 +561,18 @@ export default function MappingPage() {
 
           {/* Taxonomy Listing */}
           <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-ambient">
-            <h3 className="text-lg font-bold font-headline text-on-surface mb-4">Aktiva Kategorier ({taxonomyNodes.length})</h3>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+              <h3 className="text-lg font-bold font-headline text-on-surface">
+                Aktiva Kategorier ({taxonomyNodes.length})
+              </h3>
+              <input
+                type="text"
+                placeholder="Filtrera kategorier..."
+                value={taxSearch}
+                onChange={(e) => setTaxSearch(e.target.value)}
+                className="p-2 text-sm bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full sm:w-64"
+              />
+            </div>
             <div className="overflow-x-auto max-h-[500px] overflow-y-auto pr-1">
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
@@ -510,21 +584,35 @@ export default function MappingPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {taxonomyNodes.map((node) => (
-                    <tr key={node.id} className="border-b border-slate-50 dark:border-slate-900/50 hover:bg-slate-50/50 transition-colors font-medium">
-                      <td className="p-3 font-bold text-slate-850 dark:text-slate-250">{node.area}</td>
-                      <td className="p-3 text-slate-800 dark:text-slate-200">{node.type}</td>
-                      <td className="p-3 text-slate-500">{node.category}</td>
-                      <td className="p-3 text-right">
-                        <button
-                          onClick={() => handleDeleteTaxNode(node.id)}
-                          className="px-3 py-1 text-xs bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400 font-bold rounded hover:scale-95 transition-transform"
-                        >
-                          Radera
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {taxonomyNodes
+                    .filter((node) => {
+                      if (!taxSearch.trim()) return true;
+                      const q = taxSearch.toLowerCase();
+                      return (
+                        node.area.toLowerCase().includes(q) ||
+                        node.type.toLowerCase().includes(q) ||
+                        node.category.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((node) => (
+                      <tr key={node.id} className="border-b border-slate-50 dark:border-slate-900/50 hover:bg-slate-50/50 transition-colors font-medium">
+                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">{node.area}</td>
+                        <td className="p-3 text-slate-700 dark:text-slate-300">{node.type}</td>
+                        <td className="p-3 text-slate-500">{node.category}</td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Vill du ta bort kategorin "${node.category}" under ${node.type}?`)) {
+                                handleDeleteTaxNode(node.id);
+                              }
+                            }}
+                            className="px-3 py-1 text-xs bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400 font-bold rounded hover:scale-95 transition-transform"
+                          >
+                            Radera
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>

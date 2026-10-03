@@ -1,5 +1,6 @@
 import { AuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -12,6 +13,20 @@ export const authOptions: AuthOptions = {
         }
       }
     }),
+    CredentialsProvider({
+      id: "dev-login",
+      name: "Dev / Test Mode",
+      credentials: {
+        username: { label: "Username", type: "text", value: "testuser" }
+      },
+      async authorize() {
+        return {
+          id: "dev-user",
+          name: "Fredrik (Test User)",
+          email: "test@balans.local"
+        };
+      }
+    })
   ],
   callbacks: {
     async jwt({ token, account }) {

@@ -187,6 +187,8 @@ erDiagram
 │   │   └── prisma.ts                # Hot-reload safe global Prisma Client instance
 │   ├── middleware.ts                # [NEW] Route protection middleware
 ├── .env.local                       # Environment credentials (ignored by Git)
+├── Dockerfile                       # Multi-stage Dockerfile (dev, builder, runner)
+├── docker-compose.yml               # Local development container orchestration
 ├── package.json                     # Node dependencies & project scripts
 └── tsconfig.json                    # TS configuration
 ```
@@ -221,6 +223,11 @@ The following optimizations have been fully implemented, compiling successfully 
 * **Local Pre-classification Rules**: Built [preClassifier.ts](file:///home/fredrik/Documents/GitHub/economy-overview/src/lib/preClassifier.ts) to instantly resolve categories for common services (ICA, Swish, Netflix, Lön), skipping AI calls for known descriptions.
 * **Prompt Batching**: Configured the categorization API to batch unclassified lines in chunks of 50 before sending them to Gemini 2.5 Flash, ensuring token compliance and parsing reliability.
 
+### 7. 🐳 Containerized Development Environment
+* **Multi-Stage Dockerfile**: Implemented a multi-stage [Dockerfile](file:///home/fredrik/Documents/GitHub/economy-overview/Dockerfile) targeting `dev` for local development and `runner` for production.
+* **Live-Reload & Schema Sync**: [docker-compose.yml](file:///home/fredrik/Documents/GitHub/economy-overview/docker-compose.yml) binds host source code with anonymous volumes for `node_modules` and `.next`, enabling instant Fast Refresh. It boots with `npx prisma db push && npm run dev` to automatically synchronize database changes directly to the host's `prisma/dev.db`.
+* **Seamless Dual Env Loading**: Injects both `.env` and `.env.local` directly into the container so AI features (`GEMINI_API_KEY`) and Google OAuth authentication work out-of-the-box.
+
 ---
 
 ## 🚀 Future Roadmap & Enhancements
@@ -229,5 +236,5 @@ For future development cycles, the following improvements are recommended:
 
 * **Database Indexing**: Add index annotations in [schema.prisma](file:///home/fredrik/Documents/GitHub/economy-overview/prisma/schema.prisma) on transaction `date` and `area`, and balance `date` to optimize queries on large datasets.
 * **Database-Backed Taxonomy**: Migrate the hardcoded taxonomy mapping from [upload/page.tsx](file:///home/fredrik/Documents/GitHub/economy-overview/src/app/upload/page.tsx) to database models to allow editing categories directly in the browser.
-* **Hash-Based Deduplication**: Generate MD5/SHA256 hashes of transaction fields (amount, date, description) to handle identical transactions occurring on the same day without skipping valid separate purchases.
+* **Occurrence-Aware Hash Deduplication**: Generate deterministic SHA-256 fingerprint hashes incorporating bank running balances (`Saldo`/`Referens`) or same-day occurrence counters (`date`, `amount`, `description`, `occurrenceIndex`). This resolves the N+1 loop with $O(1)$ batch lookups while preserving valid same-day identical transactions (e.g. buying two separate 35 kr coffees).
 * **Few-shot Prompting**: Save category adjustments to database records, and feed user corrections back as few-shot training prompts to the Gemini classifier to improve categorization accuracy over time.

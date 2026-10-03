@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { preClassify } from "@/lib/preClassifier";
+import { prisma } from "@/lib/prisma";
 
 interface CategorizedItem {
   id: number;
@@ -35,9 +36,52 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "GEMINI_API_KEY is missing in .env.local" }, { status: 500 });
     }
 
+    // Load pre-classification rules from database
+    let rules = await prisma.preClassificationRule.findMany();
+    if (rules.length === 0) {
+      const defaultRules = [
+        { keyword: "ica", area: "Utgift", type: "Mat & dryck", category: "Livsmedel" },
+        { keyword: "netflix", area: "Utgift", type: "Nöjen/Shopping", category: "Media/Bok/Kultur" },
+        { keyword: "spotify", area: "Utgift", type: "Nöjen/Shopping", category: "Media/Bok/Kultur" },
+        { keyword: "lön", area: "Inkomst", type: "Inkomst", category: "Lön" },
+        { keyword: "swish", area: "Överföring", type: "Överföring", category: "Sparande" },
+      ];
+      await prisma.preClassificationRule.createMany({
+        data: defaultRules
+      });
+      rules = await prisma.preClassificationRule.findMany();
+    }
+
+    // Load Category Taxonomy nodes from database to construct dynamic prompt
+    let taxonomyNodes = await prisma.taxonomyNode.findMany();
+    if (taxonomyNodes.length === 0) {
+      const { defaultTaxonomy } = await import("@/lib/defaultTaxonomy");
+      await prisma.taxonomyNode.createMany({
+        data: defaultTaxonomy
+      });
+      taxonomyNodes = await prisma.taxonomyNode.findMany();
+    }
+
+    const taxMap: Record<string, Record<string, string[]>> = {};
+    taxonomyNodes.forEach((node) => {
+      if (!taxMap[node.area]) taxMap[node.area] = {};
+      if (!taxMap[node.area][node.type]) taxMap[node.area][node.type] = [];
+      if (node.category && !taxMap[node.area][node.type].includes(node.category)) {
+        taxMap[node.area][node.type].push(node.category);
+      }
+    });
+
+    let taxonomyString = "";
+    Object.keys(taxMap).forEach((area) => {
+      taxonomyString += `\nArea: ${area}\n`;
+      Object.keys(taxMap[area]).forEach((type) => {
+        taxonomyString += `${area} -> ${type} -> [${taxMap[area][type].join(", ")}]\n`;
+      });
+    });
+
     // 2. Local Pre-classification Lookup
     const classifiedList = transactions.map((t: RawTransaction, idx: number) => {
-      const local = preClassify(t.description);
+      const local = preClassify(t.description, rules);
       if (local) {
         return {
           ...t,
@@ -76,17 +120,7 @@ export async function POST(req: Request) {
 You are a highly accurate financial transaction categorizer. You must strictly use ONLY the following taxonomy (Area -> Type -> Category/Subtype) to categorize the provided transactions based on their descriptions. Do not invent categories.
 
 Taxonomy:
-Utgift -> Kommunikation -> [Tv, Fast telefoni, Mobil telefoni, Internet, Mobilt internet, Annat]
-Utgift -> Mat & dryck -> [Livsmedel, Luncher, Fika, Frukost, Middag, Alkohol, Godis/Snacks, Snabbmat, Restaurang, Annat]
-Utgift -> Transport -> [Bil, Båt, Flyg, Taxi, Tåg, Kollektivt, Bränsle, Parkering/Vägtullar, MC/Moped, Cykel, Annat]
-Utgift -> Boende -> [Hyra/Avgift, El, Gas/Fjärrvärme Vatten, Sophämtning, Garage/Parkering, Reparation/Drift Fritidshus, Vitvaror, Möbler/Husgeråd, Renovering/Bygg, Hushållsnära tjänster, Larm]
-Utgift -> Försäkring -> [Bil/Fordon, Hem, Villa, Bostadsrätt, Liv/Sjuk/Olycksfall, Barnförsäkring]
-Utgift -> Nöjen/Shopping -> [Kläder/Skor, Bio, Fest, Resor, Sport/Fritid/Hälsa, Spel och dobbel, Musik/Show/Konsert, Media/Bok/Kultur, Hemelektronik, Shopping]
-Utgift -> Lån -> [Bolån, Banklån, Studielån, Snabblån, Billån, Återbetalning]
-Utgift -> Övrigt -> [Ålderspension, Hygien, A-kassa, Fackavgift, Kåravgift, Studiematerial, Förbrukningsvaror, Vård, Annat]
-
-Inkomst -> Inkomst -> [Lön, Sommarjobb, Gåva, Övrig inkomst, A-kassa, Studiebidrag/Lån, Bidrag, Föräldrapenning, Barnbidrag, Skuld, Från sparande, Pension, Återbäring, Korrigering, Sjukpenning, Utlägg]
-Överföring -> Överföring -> [Sparande, Bankkonto, Fonder, Aktier, Pensionsspar, Madrassen, Sparmål, Övrigt]
+${taxonomyString}
 
 Input Transactions:
 ${JSON.stringify(batch.map((t) => ({ id: t.originalIdx, description: t.description, amount: t.amount })), null, 2)}

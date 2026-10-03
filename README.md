@@ -76,21 +76,32 @@ Open [http://localhost:3000](http://localhost:3000) with your browser.
 
 ### 🐳 Running with Docker Compose
 
-Alternatively, you can build and run the entire stack inside a Docker container:
+You can build and run the development environment inside a Docker container:
 
 1. Configure your `.env` and `.env.local` files in the project root.
-2. Build the Docker container image:
+2. Build and start the container:
    ```bash
-   docker-compose build
+   docker compose up --build -d
    ```
-3. Boot the container service:
+3. View live logs:
    ```bash
-   docker-compose up
+   docker compose logs -f app
    ```
 4. Access [http://localhost:3000](http://localhost:3000) inside your web browser.
+5. Stop the container when finished:
+   ```bash
+   docker compose down
+   ```
 
 > [!NOTE]
-> On startup, Docker Compose will automatically execute `npx prisma db push` to initialize and align your SQLite schema. The SQLite database file will persist across runs in a named Docker volume (`prisma-db`).
+> On startup, Docker Compose will automatically execute `npx prisma db push` to align your SQLite schema and starts the Next.js development server with hot-reloading. Source code changes on your host are reflected in real-time, and database updates persist directly in `prisma/dev.db`.
+
+> [!TIP]
+> - **Running commands in container**: Run `docker compose exec app <command>` (e.g., `docker compose exec app npx prisma studio` to open Prisma Studio).
+> - **Production Image**: To build the standalone production image instead, run:
+>   ```bash
+>   docker build --target runner -t economy-overview:latest .
+>   ```
 
 ---
 

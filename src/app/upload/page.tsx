@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { useSession, signIn } from "next-auth/react";
 import Papa from "papaparse";
@@ -115,31 +115,24 @@ interface CategorizedTransaction {
     });
   };
 
-  const TAXONOMY: Record<string, Record<string, string[]>> = {
-    "Utgift": {
-      "Kommunikation": ["Tv", "Fast telefoni", "Mobil telefoni", "Internet", "Mobilt internet", "Annat"],
-      "Mat & dryck": ["Livsmedel", "Luncher", "Fika", "Frukost", "Middag", "Alkohol", "Godis/Snacks", "Snabbmat", "Restaurang", "Annat"],
-      "Transport": ["Bil", "Båt", "Flyg", "Taxi", "Tåg", "Kollektivt", "Bränsle", "Parkering/Vägtullar", "MC/Moped", "Cykel", "Annat"],
-      "Boende": ["Hyra/Avgift", "El", "Gas/Fjärrvärme Vatten", "Sophämtning", "Garage/Parkering", "Reparation/Drift Fritidshus", "Vitvaror", "Möbler/Husgeråd", "Renovering/Bygg", "Hushållsnära tjänster", "Larm"],
-      "Försäkring": ["Bil/Fordon", "Hem", "Villa", "Bostadsrätt", "Liv/Sjuk/Olycksfall", "Barnförsäkring"],
-      "Nöjen/Shopping": ["Kläder/Skor", "Bio", "Fest", "Resor", "Sport/Fritid/Hälsa", "Spel och dobbel", "Musik/Show/Konsert", "Media/Bok/Kultur", "Hemelektronik", "Shopping"],
-      "Lån": ["Bolån", "Banklån", "Studielån", "Snabblån", "Billån", "Återbetalning"],
-      "Övrigt": ["Ålderspension", "Hygien", "A-kassa", "Fackavgift", "Kåravgift", "Studiematerial", "Förbrukningsvaror", "Vård", "Annat"]
-    },
-    "Inkomst": {
-      "Inkomst": ["Lön", "Sommarjobb", "Gåva", "Övrig inkomst", "A-kassa", "Studiebidrag/Lån", "Bidrag", "Föräldrapenning", "Barnbidrag", "Skuld", "Från sparande", "Pension", "Återbäring", "Korrigering", "Sjukpenning", "Utlägg"]
-    },
-    "Överföring": {
-      "Överföring": ["Sparande", "Bankkonto", "Fonder", "Aktier", "Pensionsspar", "Madrassen", "Sparmål", "Övrigt"]
-    }
-  };
+  const [taxonomy, setTaxonomy] = useState<Record<string, Record<string, string[]>>>({});
+
+  useEffect(() => {
+    fetch("/api/buckets/taxonomy")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.taxonomy) {
+          setTaxonomy(data.taxonomy);
+        }
+      });
+  }, []);
 
   const handleTypeChange = (index: number, newArea: string, newType: string) => {
     const updated = [...parsedTransactions];
     updated[index].area = newArea;
     updated[index].type = newType;
     // Auto-select the first available category in this type
-    const availableCategories = TAXONOMY[newArea]?.[newType] || [];
+    const availableCategories = taxonomy[newArea]?.[newType] || [];
     updated[index].category = availableCategories[0] || "";
     setParsedTransactions(updated);
   };
@@ -379,7 +372,7 @@ interface CategorizedTransaction {
                         }}
                         className="p-2 border border-slate-200 rounded bg-white text-sm w-full outline-primary cursor-pointer"
                       >
-                        {Object.entries(TAXONOMY).map(([area, typesObj]) => (
+                        {Object.entries(taxonomy).map(([area, typesObj]) => (
                           <optgroup key={area} label={area}>
                             {Object.keys(typesObj).map(typeKey => (
                               <option key={`${area}|${typeKey}`} value={`${area}|${typeKey}`}>{typeKey}</option>
@@ -393,7 +386,7 @@ interface CategorizedTransaction {
                         onChange={(e) => handleCategoryChange(idx, e.target.value)}
                         className="p-2 border border-slate-200 rounded bg-white text-sm w-full outline-primary cursor-pointer"
                       >
-                        {(TAXONOMY[tx.area]?.[tx.type] || []).map((cat: string) => (
+                        {(taxonomy[tx.area]?.[tx.type] || []).map((cat: string) => (
                           <option key={cat} value={cat}>{cat}</option>
                         ))}
                       </select>

@@ -1,21 +1,23 @@
-version: '3.8'
-
 services:
   app:
-    build: .
+    build:
+      context: .
+      target: dev
     ports:
       - "3000:3000"
+    env_file:
+      - .env
+      - path: .env.local
+        required: false
     environment:
       - DATABASE_URL=file:./dev.db
       - NEXTAUTH_URL=http://localhost:3000
-      - NEXTAUTH_SECRET=generate_a_random_secret_string_here
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - HOSTNAME=0.0.0.0
+      - PORT=3000
+      - WATCHPACK_POLLING=true
     volumes:
-      - prisma-db:/app/prisma
-    # Automatically apply database schema changes on container boot
-    command: sh -c "npx prisma db push && npm run start"
-
-volumes:
-  prisma-db:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    # Automatically apply database schema changes on container boot and start Next.js dev server
+    command: sh -c "npx prisma db push && npm run dev"

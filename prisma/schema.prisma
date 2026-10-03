@@ -48,3 +48,22 @@ model BucketScenario {
   expectedGrowth  Float?   // e.g., 0.07 for 7% annual growth
   horizonYears    Int?     // Default horizon length in years
 }
+
+model PreClassificationRule {
+  id          String   @id @default(uuid())
+  keyword     String   @unique
+  area        String   
+  type        String   
+  category    String   
+  createdAt   DateTime @default(now())
+}
+
+model TaxonomyNode {
+  id        String   @id @default(uuid())
+  area      String   
+  type      String   
+  category  String   
+  createdAt DateTime @default(now())
+
+  @@unique([area, type, category])
+}

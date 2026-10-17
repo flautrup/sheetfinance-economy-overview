@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import crypto from "crypto";
+import { computeTxHash } from "@/lib/txHash";
+import { normalizeArea } from "@/lib/area";
 
 export async function GET(req: Request) {
   try {
@@ -126,33 +127,15 @@ export async function POST(req: Request) {
       const parsedDate = new Date(t.date);
       if (isNaN(parsedDate.getTime())) continue;
 
-      const dateStr = parsedDate.toISOString().slice(0, 10);
-      const descStr = String(t.description).trim().toLowerCase();
-      const accStr = (t.account || "").trim().toLowerCase();
       const amountVal = Number(t.amount);
-
-      let hash: string;
-      if (t.reference || t.saldo !== undefined) {
-        const refOrSaldo = String(t.reference ?? t.saldo).trim();
-        hash = crypto
-          .createHash("sha256")
-          .update(`${dateStr}|${amountVal}|${descStr}|${accStr}|${refOrSaldo}`)
-          .digest("hex");
-      } else {
-        const occurrenceKey = `${dateStr}|${amountVal}|${descStr}|${accStr}`;
-        const occurrenceIndex = (occurrenceTracker[occurrenceKey] = (occurrenceTracker[occurrenceKey] ?? -1) + 1);
-        hash = crypto
-          .createHash("sha256")
-          .update(`${dateStr}|${amountVal}|${descStr}|${accStr}|${occurrenceIndex}`)
-          .digest("hex");
-      }
+      const hash = computeTxHash(parsedDate, String(t.description), occurrenceTracker);
 
       candidateTransactions.push({
         hash,
         date: parsedDate,
         description: String(t.description).trim(),
         amount: amountVal,
-        area: t.area || "Utgift",
+        area: normalizeArea(t.area) || "Utgift",
         type: t.type || "",
         category: t.category || "Övrigt",
         account: t.account ? String(t.account).trim() : null,
@@ -213,7 +196,7 @@ export async function PATCH(req: Request) {
     }
 
     const updateData: Prisma.TransactionUpdateInput = {};
-    if (area !== undefined) updateData.area = area;
+    if (area !== undefined) updateData.area = normalizeArea(area);
     if (category !== undefined) updateData.category = category;
     if (type !== undefined) updateData.type = type;
     if (description !== undefined) updateData.description = description;

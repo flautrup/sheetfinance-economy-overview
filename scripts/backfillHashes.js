@@ -31,15 +31,14 @@ async function backfill() {
   for (const t of transactions) {
     const dateStr = t.date instanceof Date ? t.date.toISOString().slice(0, 10) : String(t.date).slice(0, 10);
     const descStr = (t.description || "").trim().toLowerCase();
-    const accStr = (t.account || "").trim().toLowerCase();
-    const amountVal = Number(t.amount);
 
-    const occurrenceKey = `${dateStr}|${amountVal}|${descStr}|${accStr}`;
+    // Hash = date + description + occurrence index (amount/account intentionally excluded)
+    const occurrenceKey = `${dateStr}|${descStr}`;
     const occurrenceIndex = (occurrenceTracker[occurrenceKey] = (occurrenceTracker[occurrenceKey] ?? -1) + 1);
 
     const hash = crypto
       .createHash("sha256")
-      .update(`${dateStr}|${amountVal}|${descStr}|${accStr}|${occurrenceIndex}`)
+      .update(`${dateStr}|${descStr}|${occurrenceIndex}`)
       .digest("hex");
 
     if (t.hash !== hash) {

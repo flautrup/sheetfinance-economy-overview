@@ -83,7 +83,7 @@ export async function GET() {
       monthlyExpenseMap.set(r.m, Number(r.total));
     }
 
-    function getTrailingAvgExpenses(snapshotDate: Date, monthsWindow: number = 6): { avgMonthlyExpenses: number; estimated: boolean } {
+    const getTrailingAvgExpenses = (snapshotDate: Date, monthsWindow: number = 6): { avgMonthlyExpenses: number; estimated: boolean } => {
       let sum = 0;
       let countWithData = 0;
       const targetDate = new Date(snapshotDate);

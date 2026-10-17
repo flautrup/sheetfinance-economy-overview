@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { google } from "googleapis";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import crypto from "crypto";
+import { computeTxHash } from "@/lib/txHash";
+import { normalizeArea } from "@/lib/area";
 
 // Utility to parse Swedish formatted numbers (e.g. "−10,00" or "-10,00" to -10.00)
 function parseSwedishNumber(val: string): number {
@@ -21,12 +22,18 @@ export async function POST(req: Request) {
 
     const { txSheetUrl, balSheetUrl, accessToken, mode = "merge" } = await req.json();
 
-    if ((!txSheetUrl && !balSheetUrl) || !accessToken) {
-      return NextResponse.json({ success: false, error: "Missing sheetUrls or accessToken" }, { status: 400 });
+    const effectiveAccessToken = (session as { accessToken?: string })?.accessToken || accessToken;
+
+    if ((!txSheetUrl && !balSheetUrl) || !effectiveAccessToken) {
+      return NextResponse.json({ 
+        success: false, 
+        isAuthError: !effectiveAccessToken,
+        error: "Saknar Google-åtkomsttoken eller kalkylarks-URL. Vänligen logga ut och logga in igen med Google." 
+      }, { status: 400 });
     }
 
     const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: accessToken });
+    auth.setCredentials({ access_token: effectiveAccessToken });
     const sheets = google.sheets({ version: "v4", auth });
 
     let txCount = 0;
@@ -83,18 +90,12 @@ export async function POST(req: Request) {
           const accStr = accIdx !== -1 && r[accIdx] ? String(r[accIdx]).trim() : "";
           const amountVal = amountIdx !== -1 ? parseSwedishNumber(r[amountIdx] || "0") : 0;
 
-          const occurrenceKey = `${dateStr}|${amountVal}|${descStr.toLowerCase()}|${accStr.toLowerCase()}`;
-          const occurrenceIndex = (occurrenceTracker[occurrenceKey] = (occurrenceTracker[occurrenceKey] ?? -1) + 1);
-
-          const hash = crypto
-            .createHash("sha256")
-            .update(`${dateStr}|${amountVal}|${descStr.toLowerCase()}|${accStr.toLowerCase()}|${occurrenceIndex}`)
-            .digest("hex");
+          const hash = computeTxHash(parsedDate, descStr, occurrenceTracker);
 
           return {
             hash,
             date: parsedDate,
-            area: areaIdx !== -1 && r[areaIdx] ? String(r[areaIdx]).trim() : null,
+            area: areaIdx !== -1 && r[areaIdx] ? normalizeArea(String(r[areaIdx])) : null,
             category: catIdx !== -1 && r[catIdx] ? String(r[catIdx]).trim() : null,
             type: typeIdx !== -1 && r[typeIdx] ? String(r[typeIdx]).trim() : null,
             description: descStr || null,
@@ -188,9 +189,41 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, txCount, balCount, mode });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+  } catch (error: unknown) {
+    const rawMessage = error instanceof Error ? error.message : String(error);
     console.error("Upload parse error:", error);
-    return NextResponse.json({ success: false, error: message }, { status: 400 });
+
+    const errObj = error as Record<string, unknown> | null;
+    const isAuthError =
+      rawMessage.includes("invalid authentication credentials") ||
+      rawMessage.includes("OAuth 2 access token") ||
+      rawMessage.includes("Invalid Credentials") ||
+      errObj?.status === 401 ||
+      errObj?.code === 401;
+
+    const isPermissionError =
+      rawMessage.includes("Google Sheets API has not been used") ||
+      rawMessage.includes("is disabled") ||
+      errObj?.status === 403 ||
+      errObj?.code === 403;
+
+    if (isAuthError) {
+      return NextResponse.json({
+        success: false,
+        isAuthError: true,
+        error: "Google-inloggningen har löpt ut eller saknar behörighet för kalkylark. Logga ut och logga in igen med Google för att förnya åtkomsten.",
+        details: rawMessage,
+      }, { status: 401 });
+    }
+
+    if (isPermissionError) {
+      return NextResponse.json({
+        success: false,
+        error: "Google Sheets API är inte aktiverat i ditt Google Cloud-projekt. Se till att Google Sheets API är aktiverat i Google Cloud Console under 'APIs & Services'.",
+        details: rawMessage,
+      }, { status: 403 });
+    }
+
+    return NextResponse.json({ success: false, error: rawMessage }, { status: 400 });
   }
 }

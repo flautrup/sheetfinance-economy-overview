@@ -11,9 +11,13 @@ export async function POST(req: Request) {
     }
 
     const { sheetUrl, accessToken } = await req.json();
+    const effectiveAccessToken = (session as { accessToken?: string })?.accessToken || accessToken;
 
-    if (!sheetUrl || !accessToken) {
-      return NextResponse.json({ error: "Missing sheetUrl or accessToken" }, { status: 400 });
+    if (!sheetUrl || !effectiveAccessToken) {
+      return NextResponse.json({ 
+        error: "Saknar Google-åtkomsttoken eller kalkylarks-URL. Vänligen logga ut och logga in igen med Google.", 
+        isAuthError: !effectiveAccessToken 
+      }, { status: 400 });
     }
 
     // Extract spreadsheetId from URL
@@ -38,7 +42,7 @@ export async function POST(req: Request) {
       const metaRes = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`,
         {
-          headers: { Authorization: `Bearer ${accessToken}` }
+          headers: { Authorization: `Bearer ${effectiveAccessToken}` }
         }
       );
       if (metaRes.ok) {
@@ -84,7 +88,7 @@ export async function POST(req: Request) {
     const clearRes = await fetch(clearUrl, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${accessToken}`,
+        "Authorization": `Bearer ${effectiveAccessToken}`,
         "Content-Type": "application/json"
       }
     });
@@ -98,7 +102,7 @@ export async function POST(req: Request) {
     const updateRes = await fetch(updateUrl, {
       method: "PUT",
       headers: {
-        "Authorization": `Bearer ${accessToken}`,
+        "Authorization": `Bearer ${effectiveAccessToken}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -115,9 +119,26 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, rowsExported: transactions.length, sheet: targetSheetTitle });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+  } catch (error: unknown) {
+    const rawMessage = error instanceof Error ? error.message : String(error);
     console.error("Export error:", error);
-    return NextResponse.json({ error: message }, { status: 500 });
+
+    const errObj = error as Record<string, unknown> | null;
+    const isAuthError =
+      rawMessage.includes("invalid authentication credentials") ||
+      rawMessage.includes("OAuth 2 access token") ||
+      rawMessage.includes("Invalid Credentials") ||
+      errObj?.status === 401 ||
+      errObj?.code === 401;
+
+    if (isAuthError) {
+      return NextResponse.json({
+        error: "Google-inloggningen har löpt ut eller saknar behörighet för kalkylark. Logga ut och logga in igen med Google för att förnya åtkomsten.",
+        isAuthError: true,
+        details: rawMessage,
+      }, { status: 401 });
+    }
+
+    return NextResponse.json({ error: rawMessage }, { status: 500 });
   }
 }

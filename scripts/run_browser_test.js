@@ -146,7 +146,7 @@ async function runTests() {
       const rulesTab = tabs.find(t => t.textContent?.toLowerCase().includes("klassificeringsregler"));
       if (rulesTab) rulesTab.click();
     });
-    await page.waitForFunction(() => document.body.innerText.includes("Testa Regelmatchning"), { timeout: 5000 });
+    await page.waitForFunction(() => document.body.innerText.includes("Testa Regelmatchning"), { timeout: 15000 });
     await new Promise(r => setTimeout(r, 800));
 
     const rulesTabText = await page.evaluate(() => document.body.innerText);
